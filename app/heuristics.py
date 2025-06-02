@@ -1,52 +1,14 @@
+from typing import Tuple
 from app.spots import SurfSpot
 from app.forecast import MarineForecast
 
-def evaluate_surfability(spot: SurfSpot, forecast: list[MarineForecast], index: int) -> tuple[bool, str, str]:
-    try:
-        f = forecast[index]
-        wave_height = f.wave_height_m
-        wave_direction = f.wave_direction_deg
-        wind_wave_height = f.wind_wave_height_m
-        wind_direction = f.wind_wave_direction_deg
-        swell_period = f.wave_period_s
-        wind_speed = f.wind_speed_kmh
-
-        height_ok = wave_height is not None and wave_height >= spot.swell_min_m
-        dir_ok = wave_direction is not None and spot.swell_dir_range[0] <= wave_direction <= spot.swell_dir_range[1]
-        chop_ok = wind_wave_height is not None and wind_wave_height <= spot.preferred_wind_wave_max_m
-        period_ok = swell_period is not None and swell_period >= 7
-
-        wind_type = wind_quality(spot.facing_direction_deg, wind_direction) if wind_direction is not None else "unknown"
-        wind_strength_ok = wind_speed is None or wind_type != "onshore" or wind_speed <= 15
-
-        surf_level = classify_surf_level(wave_height, swell_period, wind_type, wind_wave_height, spot, wind_speed)
-
-        if height_ok and dir_ok and chop_ok and period_ok and wind_strength_ok:
-            return True, surf_level, None
-        else:
-            reason = []
-            if not height_ok:
-                reason.append(f"wave too small ({wave_height:.2f}m < {spot.swell_min_m}m)" if wave_height is not None else "missing wave height")
-            if not dir_ok:
-                reason.append(f"bad swell direction ({wave_direction}°)" if wave_direction is not None else "missing swell direction")
-            if not chop_ok:
-                reason.append(f"too choppy ({wind_wave_height:.2f}m)" if wind_wave_height is not None else "missing wind wave height")
-            if not period_ok:
-                reason.append(f"swell too weak ({swell_period}s)" if swell_period is not None else "missing swell period")
-            if not wind_strength_ok:
-                reason.append(f"strong onshore wind ({wind_speed} km/h)")
-
-            return False, surf_level, "; ".join(reason)
-
-    except Exception as e:
-        print(f"Surfability evaluation error at index {index} for spot {spot.name}: {e}")
-        return False, "Poor", "missing or invalid data"
-
+def fmt(value, unit="", decimals=2):
+    if value is None:
+        return "n/a"
+    return f"{value:.{decimals}f}{unit}"
 
 def wind_quality(facing_deg: int, wind_deg: int) -> str:
-    # Angle difference between where spot faces and wind comes from
     delta = (wind_deg - facing_deg + 360) % 360
-
     if 120 <= delta <= 240:
         return "offshore"
     elif 60 <= delta < 120 or 240 < delta <= 300:
@@ -54,20 +16,64 @@ def wind_quality(facing_deg: int, wind_deg: int) -> str:
     else:
         return "onshore"
 
+def evaluate_surf_quality(spot: SurfSpot, forecast: MarineForecast) -> Tuple[str, str]:
+    """Returns (rating, explanation)"""
+    explanations = []
 
-def classify_surf_level(wave_height, swell_period, wind_type, wind_wave_height, spot: SurfSpot, wind_speed_kmh: float = 0) -> str:
-    if wave_height < spot.swell_min_m or swell_period < 7:
-        return "Poor"
+    wave_height = forecast.wave_height_m
+    swell_period = forecast.wave_period_s
+    wave_dir = forecast.wave_direction_deg
+    wind_wave_height = forecast.wind_wave_height_m
+    wind_speed = forecast.wind_speed_kmh
+    wind_dir = forecast.wind_direction_deg
 
-    if wind_type == "onshore" and (wind_wave_height > spot.preferred_wind_wave_max_m or wind_speed_kmh > 15):
-        return "Poor"
+    wind_type = wind_quality(spot.facing_direction_deg, wind_dir) if wind_dir is not None else "unknown"
 
-    if wave_height > spot.swell_min_m and swell_period >= 8:
-        if wind_type == "offshore":
-            return "Excellent"
-        elif wind_type == "cross-shore":
-            return "Good"
+    # Basic checks
+    if wave_height is None or wave_height < spot.swell_min_m:
+        explanations.append(f"Wave too small ({fmt(wave_height, 'm')} < {spot.swell_min_m}m)" if wave_height is not None else "Missing wave height")
+
+    if wave_dir is None or not (spot.swell_dir_range[0] <= wave_dir <= spot.swell_dir_range[1]):
+        explanations.append(f"Bad swell direction ({fmt(wave_dir, '°')} not in {spot.swell_dir_range})" if wave_dir is not None else "Missing swell direction")
+
+    if wind_wave_height is None or wind_wave_height > spot.preferred_wind_wave_max_m:
+        explanations.append(f"Too choppy (wind wave {fmt(wind_wave_height, 'm')})" if wind_wave_height is not None else "Missing wind wave height")
+
+    if swell_period is None or swell_period < 7:
+        explanations.append(f"Swell period too short ({fmt(swell_period, 's')} < 7s)" if swell_period is not None else "Missing swell period")
+
+    # If any disqualifying factors, return Poor with reasons
+    if explanations:
+        return "Poor", "; ".join(explanations) + f" | wind_type={wind_type}"
+
+    # Conditions are surfable, classify quality
+    if wind_type == "offshore":
+        if swell_period >= 12 and wave_height >= 1:
+            return "Excellent", f"Powerful swell and clean offshore wind ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')}, wind {fmt(wind_speed, 'km/h', 0)})"
+        elif swell_period >= 8:
+            return "Good", f"Good swell and clean offshore wind ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')}, wind {fmt(wind_speed, 'km/h', 0)})"
         else:
-            return "Fair"
+            return "Fair", f"Offshore wind with short period swell ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')}, wind {fmt(wind_speed, 'km/h', 0)})"
 
-    return "Fair"
+    elif wind_type == "cross-shore":
+        if swell_period >= 11:
+            if wind_speed and wind_speed > 25:
+                return "Good", f"Strong cross-shore wind ({fmt(wind_speed, 'km/h', 0)}) but long swell period ({fmt(swell_period, 's')})"
+            return "Good", f"Long swell period ({fmt(swell_period, 's')}) with cross-shore wind ({fmt(wind_speed, 'km/h', 0)})"
+        elif swell_period >= 8:
+            if wind_speed and wind_speed > 25:
+                return "Fair", f"Moderate swell with strong cross-shore wind ({fmt(wind_speed, 'km/h', 0)})"
+            return "Good", f"Decent swell ({fmt(swell_period, 's')}) and manageable cross-shore wind ({fmt(wind_speed, 'km/h', 0)})"
+        else:
+            return "Fair", f"Short swell period ({fmt(swell_period, 's')}) with cross-shore wind ({fmt(wind_speed, 'km/h', 0)})"
+
+    elif wind_type == "onshore":
+        if wind_speed is not None and wind_speed < 8:
+            return "Good", f"Onshore wind but light ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')}, {fmt(wind_speed, 'km/h', 0)})"
+        elif wind_speed is not None and wind_speed < 15:
+            return "Fair", f"Onshore wind but still manageable ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')}, {fmt(wind_speed, 'km/h', 0)})"
+        else:
+            return "Poor", f"Choppy onshore wind ({fmt(wind_speed, 'km/h', 0)})"
+
+    # Unknown wind type
+    return "Fair", f"Surfable conditions but wind direction is unknown ({fmt(wave_height, 'm')} @ {fmt(swell_period, 's')})"

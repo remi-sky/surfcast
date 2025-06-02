@@ -10,3 +10,5 @@ __pycache__/
 *.log
 *.idea/
 *.vscode/
+app/spotsscript.py
+benchmark_forecast.py

@@ -8,6 +8,15 @@ from app.models import MarineForecast
 from app.spots import SurfSpot
 
 
+import requests
+from bs4 import BeautifulSoup
+import re
+import json
+import pandas as pd
+from datetime import datetime, timedelta
+
+
+
 async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[MarineForecast]:
     if not start_date:
         start_date = datetime.utcnow().date().isoformat()
@@ -43,8 +52,8 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
     })
 
     async with httpx.AsyncClient() as client:
-        print("DEBUG full marine request URL:", f"{marine_url}?{marine_params}")
-        print("DEBUG full weather request URL:", f"{weather_url}?{weather_params}")
+        #print("DEBUG full marine request URL:", f"{marine_url}?{marine_params}")
+        #print("DEBUG full weather request URL:", f"{weather_url}?{weather_params}")
 
         marine_response = await client.get(marine_url, params=marine_params)
         weather_response = await client.get(weather_url, params=weather_params)
@@ -55,25 +64,25 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
         marine_data = marine_response.json()
         weather_data = weather_response.json()
 
-        print("Marine Status Code:", marine_response.status_code)
-        print("Weather Status Code:", weather_response.status_code)
+        #print("Marine Status Code:", marine_response.status_code)
+        #print("Weather Status Code:", weather_response.status_code)
 
-        print("Marine response JSON keys:", marine_data.keys())
-        print("Weather response JSON keys:", weather_data.keys())
+        #print("Marine response JSON keys:", marine_data.keys())
+        #print("Weather response JSON keys:", weather_data.keys())
 
     marine_hourly = marine_data.get("hourly", {})
     weather_hourly = weather_data.get("hourly", {})
 
     time = marine_hourly.get("time", [])
-    print("Available marine hourly keys:", list(marine_hourly.keys()))
-    for key, values in marine_hourly.items():
-        print(f"{key}: {len(values)} values")
+    #print("Available marine hourly keys:", list(marine_hourly.keys()))
+    #for key, values in marine_hourly.items():
+     #   print(f"{key}: {len(values)} values")
 
-    print("Available weather hourly keys:", list(weather_hourly.keys()))
-    for key, values in weather_hourly.items():
-        print(f"{key}: {len(values)} values")
+    #print("Available weather hourly keys:", list(weather_hourly.keys()))
+    #for key, values in weather_hourly.items():
+     #   print(f"{key}: {len(values)} values")
 
-    print("DEBUG time keys:", time)
+    #print("DEBUG time keys:", time)
 
     required_keys = [
         "wave_height", "wave_direction", "wind_wave_height", "wind_wave_direction",
@@ -83,8 +92,8 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
         len(marine_hourly.get(k, [])) if "wind_speed" not in k else len(weather_hourly.get(k, []))
         for k in required_keys
     )
-    print("Minimum length across all required hourly keys:", min_length)
-    print("Length of time:", len(time))
+    #print("Minimum length across all required hourly keys:", min_length)
+    #print("Length of time:", len(time))
 
     forecasts = []
 
@@ -115,3 +124,101 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
         print("Forecast is empty.")
 
     return forecasts
+
+
+
+
+def scrape_surf_forecast(url: str):
+    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch URL {url} - Status Code: {response.status_code}")
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    def extract_row(row_name):
+        row = soup.find("tr", {"data-row-name": row_name})
+        if not row:
+            print(f"[WARN] Row '{row_name}' not found")
+            return []
+        values = [
+            " ".join(cell.stripped_strings)
+            for cell in row.find_all("td", class_="forecast-table__cell")
+        ]
+        print(f"[INFO] Extracted {len(values)} entries for '{row_name}'")
+        return values
+
+    times = extract_row("time")
+    ratings = extract_row("rating")
+    heights = extract_row("wave-height")
+    periods = extract_row("periods")
+    winds = extract_row("wind-state")
+
+    # Extract date headers and map them to time slots
+    date_cells = soup.select("td.js-fctable-day")
+    print(f"[DEBUG] Found {len(date_cells)} day header cells")
+
+    column_to_date = {}
+    current_col = 0
+    today = datetime.today()
+    for cell in date_cells:
+        try:
+            day_text = cell.get("data-day-name", "").strip()
+            if "_" in day_text:
+                _, day = day_text.split("_")
+                date = datetime(today.year, today.month, int(day))
+                colspan = int(cell.get("colspan", "1"))
+                for _ in range(colspan):
+                    column_to_date[current_col] = date
+                    current_col += 1
+        except Exception as e:
+            print(f"[WARN] Could not parse day from cell: {cell}")
+            continue
+
+    print(f"[INFO] Mapped {len(column_to_date)} columns to dates")
+
+    min_len = min(len(times), len(ratings), len(heights), len(periods), len(winds))
+    print(f"[INFO] Preparing {min_len} forecast entries")
+    forecast = []
+    for i in range(min_len):
+        # Parse hour from time string
+        time_str = times[i]
+        try:
+            # Try parsing formats like "10 AM" or "1 PM"
+            parsed_time = datetime.strptime(time_str.strip(), "%I %p")
+            hour = parsed_time.hour
+        except ValueError:
+            try:
+                parsed_time = datetime.strptime(time_str.strip(), "%H:%M")
+                hour = parsed_time.hour
+            except ValueError:
+                print(f"[WARN] Could not parse hour from time '{time_str}'")
+                hour = 0
+
+        date = column_to_date.get(i)
+        if not date:
+            print(f"[WARN] No date found for index {i}")
+            continue
+
+        dt = datetime(date.year, date.month, date.day, hour)
+        forecast.append({
+            "datetime": dt.isoformat(),
+            "rating": ratings[i],
+            "wave_height": heights[i],
+            "wave_period": periods[i],
+            "wind": winds[i],
+        })
+
+    return forecast
+
+
+# Sample matching function for ratings
+def map_our_rating_to_range(score: str) -> tuple:
+    mapping = {
+        "Poor": (0,),
+        "Fair": (1, 2),
+        "Good": (3, 4),
+        "Excellent": tuple(range(5, 11))
+    }
+    return mapping.get(score, ())
+
+
