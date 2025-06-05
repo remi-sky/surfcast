@@ -14,14 +14,13 @@ import re
 import json
 import pandas as pd
 from datetime import datetime, timedelta
+from timezonefinder import TimezoneFinder
 
-
-
-async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[MarineForecast]:
+async def get_forecast(spot: SurfSpot, timezone_str: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[MarineForecast]:
     if not start_date:
         start_date = datetime.utcnow().date().isoformat()
     if not end_date:
-        end_date = (datetime.utcnow().date() + timedelta(days=2)).isoformat()
+        end_date = (datetime.utcnow().date() + timedelta(days=13)).isoformat()
 
     marine_url = "https://marine-api.open-meteo.com/v1/marine"
     weather_url = "https://api.open-meteo.com/v1/forecast"
@@ -31,8 +30,9 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
         "longitude": spot.lon,
         "start_date": start_date,
         "end_date": end_date,
-        "timezone": "Europe/London"
+        "timezone": timezone_str
     }
+    print("DEBUG common_params:", common_params)
 
     marine_params = httpx.QueryParams({
         **common_params,
@@ -124,8 +124,6 @@ async def get_forecast(spot: SurfSpot, start_date: Optional[str] = None, end_dat
         print("Forecast is empty.")
 
     return forecasts
-
-
 
 
 def scrape_surf_forecast(url: str):

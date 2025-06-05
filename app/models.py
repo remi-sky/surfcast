@@ -40,3 +40,16 @@ class MarineForecast(BaseModel):
     wave_period_s: Optional[float] = None
     wind_speed_kmh: Optional[float] = None
     wind_direction_deg: Optional[float] = None
+
+class SurfForecast(BaseModel):
+    time: str
+    wave_height_m: float
+    wave_direction_deg: Optional[float] = None
+    wind_wave_height_m: Optional[float] = None
+    wind_wave_period_s: Optional[float] = None
+    wave_period_s: Optional[float] = None
+    wind_speed_kmh: Optional[float] = None
+    wind_direction_deg: Optional[float] = None
+    wind_type: Optional[str] = None  # "offshore", "cross-shore", "onshore", "glassy", "unknown"
+    explanation: Optional[str] = None
+    rating: Optional[str] = None  # "Poor", "Fair", "Good", "Excellent"
