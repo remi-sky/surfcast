@@ -8,7 +8,7 @@ from typing import Optional
 import json
 
 import pytz
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from timezonefinder import TimezoneFinder
 from supabase import create_client, Client
 
