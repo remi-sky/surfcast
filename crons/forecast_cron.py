@@ -19,7 +19,7 @@ from app.forecast import get_forecast
 from app.heuristics import evaluate_surf_quality
 
 # Load env vars
-load_dotenv()
+#load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -111,5 +111,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 

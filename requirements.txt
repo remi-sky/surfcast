@@ -5,3 +5,4 @@ pydantic
 asyncpg
 pytz
 timezonefinder
+supabase
