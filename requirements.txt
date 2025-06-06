@@ -2,3 +2,6 @@ fastapi
 uvicorn
 httpx
 pydantic
+asyncpg
+pytz
+timezonefinder

@@ -1,7 +1,9 @@
+#forecast_cron.py
 import os
 import sys
 import asyncio
 from datetime import datetime
+import time
 from typing import Optional
 import json
 
@@ -31,7 +33,8 @@ async def process_spot(spot, spot_id: str):
     local_tz = pytz.timezone(tz_str)
 
     forecasts = await get_forecast(spot,tz_str, start_date=None, end_date=None)
-
+ 
+  
     relevant_hours = [3, 6, 9, 12, 18, 21]
     rows = []
     for f in forecasts:
@@ -62,34 +65,51 @@ async def process_spot(spot, spot_id: str):
 
     import json  # add this at the top if not already imported
 
-    print(f"[INFO] Inserting {len(rows)} rows for {spot.name}")
+    print(f"[INFO] Inserting {len(rows)} forecast rows for {spot.name}")
     for row in rows:
         try:
-            print(f"[DEBUG] Attempting upsert for spot: {spot.name}")
-            print(f"[DEBUG] Row content: {json.dumps(row, default=str, indent=2)}")
-            print(f"[DEBUG] Conflict keys: ['spot_id', 'timestamp_local']")
+            #print(f"[DEBUG] Attempting upsert for spot: {spot.name}")
+            #print(f"[DEBUG] Row content: {json.dumps(row, default=str, indent=2)}")
+            #print(f"[DEBUG] Conflict keys: ['spot_id', 'timestamp_local']")
             assert "spot_id" in row and row["spot_id"], f"Missing or null spot_id in row: {row}"
             assert "timestamp_local" in row and row["timestamp_local"], f"Missing or null timestamp_local in row: {row}"
             response = supabase.table("surf_forecast_hourly").upsert(
                 row, on_conflict="spot_id,timestamp_local"
             ).execute()
 
-            print(f"[SUCCESS] Upsert response: {response}")
+            #print(f"[SUCCESS] Upsert response: {response}")
         except Exception as e:
             print(f"[ERROR] Upsert failed for {spot.name}: {e}")
 
 
 async def main():
+    # ⏱ Start the timer
+    start_time = time.time()
+    total_forecasts_inserted = 0
+    spots_processed = 0
+
     # Get DB surf spots with ID
     result = supabase.table("surf_spots").select("id, name").execute()
     id_map = {r["name"]: r["id"] for r in result.data}
 
-    for spot in SPOTS[:20]:  # limit for testing
+    for spot in SPOTS:
         spot_id = id_map.get(spot.name)
         if not spot_id:
             print(f"[WARNING] No spot_id found for {spot.name}")
             continue
         await process_spot(spot, spot_id)
+        await asyncio.sleep(1)
+    
+    # ⏱ End the timer
+    end_time = time.time()
+    duration_sec = end_time - start_time
+
+    print(f"\n[SUMMARY]")
+    #print(f"Processed {spots_processed} spots")
+    #print(f"Inserted {total_forecasts_inserted} forecast rows")
+    print(f"Took {duration_sec:.2f} seconds total (~{duration_sec/60:.2f} minutes)")
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+

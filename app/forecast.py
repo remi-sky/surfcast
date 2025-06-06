@@ -1,129 +1,121 @@
 # forecast.py
-
 import httpx
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional
-
 from app.models import MarineForecast
 from app.spots import SurfSpot
-
-
 import requests
 from bs4 import BeautifulSoup
-import re
-import json
-import pandas as pd
-from datetime import datetime, timedelta
 from timezonefinder import TimezoneFinder
 
-async def get_forecast(spot: SurfSpot, timezone_str: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[MarineForecast]:
+
+
+timeout = httpx.Timeout(10.0, connect=5.0)
+retries = 2
+
+
+async def fetch_with_retry(url, params, label, spot_name):
+    for attempt in range(retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+        except (httpx.ConnectTimeout, httpx.ReadTimeout,
+                httpx.ConnectError, httpx.NetworkError,
+                BrokenPipeError, ConnectionResetError) as e:
+            print(f"[WARNING] Network issue fetching {label} (attempt {attempt + 1}/{retries}) for spot {spot_name}: {e}")
+            if attempt == retries:
+                return None
+            await asyncio.sleep(1.5)
+        except httpx.HTTPStatusError as e:
+            print(f"[ERROR] HTTP error fetching {label} for {spot_name}: {e.response.status_code} {e.response.text}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Unexpected error fetching {label} for {spot_name}: {e}")
+            return None
+
+
+async def get_forecast(
+    spot: SurfSpot,
+    timezone_str: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> List[MarineForecast]:
+
     if not start_date:
         start_date = datetime.utcnow().date().isoformat()
     if not end_date:
-        end_date = (datetime.utcnow().date() + timedelta(days=13)).isoformat()
+        end_date = (datetime.utcnow().date() + timedelta(days=14)).isoformat()
 
     marine_url = "https://marine-api.open-meteo.com/v1/marine"
     weather_url = "https://api.open-meteo.com/v1/forecast"
 
-    common_params = {
+    marine_params = {
         "latitude": spot.lat,
         "longitude": spot.lon,
         "start_date": start_date,
         "end_date": end_date,
-        "timezone": timezone_str
+        "hourly": [
+            "wave_height", "wave_direction", "wave_period",
+            "wind_wave_height", "wind_wave_period"
+        ],
+        "timezone": timezone_str,
     }
-    print("DEBUG common_params:", common_params)
 
-    marine_params = httpx.QueryParams({
-        **common_params,
-        "hourly": ",".join([
-            "wave_height",
-            "wave_direction",
-            "wave_period",
-            "wind_wave_height",
-            "wind_wave_direction",
-            "wind_wave_period",
-        ])
-    })
+    weather_params = {
+        "latitude": spot.lat,
+        "longitude": spot.lon,
+        "start_date": start_date,
+        "end_date": end_date,
+        "hourly": ["wind_speed_10m", "wind_direction_10m"],
+        "timezone": timezone_str,
+    }
 
-    weather_params = httpx.QueryParams({
-        **common_params,
-        "hourly": "wind_speed_10m,wind_direction_10m"
-    })
+    marine_data = await fetch_with_retry(marine_url, marine_params, "marine forecast", spot.name)
+    weather_data = await fetch_with_retry(weather_url, weather_params, "weather forecast", spot.name)
 
-    async with httpx.AsyncClient() as client:
-        #print("DEBUG full marine request URL:", f"{marine_url}?{marine_params}")
-        #print("DEBUG full weather request URL:", f"{weather_url}?{weather_params}")
+    if not marine_data or not weather_data:
+        print(f"[ERROR] Missing data for {spot.name}, skipping...")
+        return []
 
-        marine_response = await client.get(marine_url, params=marine_params)
-        weather_response = await client.get(weather_url, params=weather_params)
+    marine_hourly = {k: v for k, v in marine_data.get("hourly", {}).items()}
+    weather_hourly = {k: v for k, v in weather_data.get("hourly", {}).items()}
 
-        marine_response.raise_for_status()
-        weather_response.raise_for_status()
-
-        marine_data = marine_response.json()
-        weather_data = weather_response.json()
-
-        #print("Marine Status Code:", marine_response.status_code)
-        #print("Weather Status Code:", weather_response.status_code)
-
-        #print("Marine response JSON keys:", marine_data.keys())
-        #print("Weather response JSON keys:", weather_data.keys())
-
-    marine_hourly = marine_data.get("hourly", {})
-    weather_hourly = weather_data.get("hourly", {})
-
-    time = marine_hourly.get("time", [])
-    #print("Available marine hourly keys:", list(marine_hourly.keys()))
-    #for key, values in marine_hourly.items():
-     #   print(f"{key}: {len(values)} values")
-
-    #print("Available weather hourly keys:", list(weather_hourly.keys()))
-    #for key, values in weather_hourly.items():
-     #   print(f"{key}: {len(values)} values")
-
-    #print("DEBUG time keys:", time)
-
+    # Check critical keys before continuing
     required_keys = [
-        "wave_height", "wave_direction", "wind_wave_height", "wind_wave_direction",
-        "wind_wave_period", "wave_period", "wind_speed_10m", "wind_direction_10m"
+        "time", "wave_height", "wave_direction", "wave_period",
+        "wind_wave_height", "wind_speed_10m", "wind_direction_10m"
     ]
-    min_length = min(
-        len(marine_hourly.get(k, [])) if "wind_speed" not in k else len(weather_hourly.get(k, []))
-        for k in required_keys
-    )
-    #print("Minimum length across all required hourly keys:", min_length)
-    #print("Length of time:", len(time))
+    for key in required_keys:
+        source = marine_hourly if key not in ["wind_speed_10m", "wind_direction_10m"] else weather_hourly
+        if key not in source:
+            print(f"[WARNING] Missing key '{key}' in Open-Meteo response for spot {spot.name}")
+            return []
 
     forecasts = []
-
-    for i in range(len(time)):
+    times = marine_hourly["time"]
+    for i, t in enumerate(times):
         try:
-            forecast_data = {
-                "time": time[i],
-                "wave_height_m": marine_hourly.get("wave_height", [None])[i],
-                "wave_direction_deg": marine_hourly.get("wave_direction", [None])[i],
-                "wave_period_s": marine_hourly.get("wave_period", [None])[i],
-                "wind_wave_height_m": marine_hourly.get("wind_wave_height", [None])[i],
-                "wind_wave_direction_deg": marine_hourly.get("wind_wave_direction", [None])[i],
-                "wind_wave_period_s": marine_hourly.get("wind_wave_period", [None])[i],
-                "wind_speed_kmh": weather_hourly.get("wind_speed_10m", [None])[i],
-                "wind_direction_deg": weather_hourly.get("wind_direction_10m", [None])[i],
-            }
-
-            forecasts.append(MarineForecast(**forecast_data))
-
-        except (IndexError, ValueError, TypeError) as e:
-            print(f"Skipping index {i} due to error: {e}")
+            forecast = MarineForecast(
+                time=t,
+                wave_height_m=marine_hourly["wave_height"][i],
+                wave_direction_deg=marine_hourly["wave_direction"][i],
+                wave_period_s=marine_hourly["wave_period"][i],
+                wind_wave_height_m=marine_hourly["wind_wave_height"][i],
+                wind_wave_period_s=marine_hourly.get("wind_wave_period", [None] * len(times))[i],
+                wind_speed_kmh=weather_hourly["wind_speed_10m"][i],
+                wind_direction_deg=weather_hourly["wind_direction_10m"][i],
+            )
+            forecasts.append(forecast)
+        except Exception as e:
+            print(f"[WARNING] Skipping index {i} for {spot.name} due to error: {e}")
             continue
 
-    if forecasts:
-        print(f"Received {len(forecasts)} forecast entries.")
-        print("First forecast (as dict):", forecasts[0].dict())
-    else:
-        print("Forecast is empty.")
-
     return forecasts
+
+
 
 
 def scrape_surf_forecast(url: str):
