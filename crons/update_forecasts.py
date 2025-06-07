@@ -109,7 +109,7 @@ async def main():
     print(f"\n[SUMMARY]")
     #print(f"Processed {spots_processed} spots")
     #print(f"Inserted {total_forecasts_inserted} forecast rows")
-    print(f"It took {duration_sec:.2f} seconds total (~{duration_sec/60:.2f} minutes)")
+    print(f"Took {duration_sec:.2f} seconds total (~{duration_sec/60:.2f} minutes)")
 
 if __name__ == "__main__":
     asyncio.run(main())
