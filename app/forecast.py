@@ -97,16 +97,34 @@ async def get_forecast(
     forecasts = []
     times = marine_hourly["time"]
     for i, t in enumerate(times):
+        # Defensive: check for None in critical fields
+        values = {
+            "wave_height": marine_hourly["wave_height"][i],
+            "wave_direction": marine_hourly["wave_direction"][i],
+            "wave_period": marine_hourly["wave_period"][i],
+            "wind_wave_height": marine_hourly["wind_wave_height"][i],
+            "wind_speed": weather_hourly["wind_speed_10m"][i],
+            "wind_direction": weather_hourly["wind_direction_10m"][i],
+        }
+
+        # Optional value with fallback
+        #wind_wave_period = marine_hourly.get("wind_wave_period", [None] * len(times))[i]
+
+        if any(v is None for v in values.values()):
+            missing = [k for k, v in values.items() if v is None]
+            print(f"[DEBUG] Skipping index {i} for {spot.name} due to missing: {missing}")
+            continue
+
         try:
             forecast = MarineForecast(
                 time=t,
-                wave_height_m=marine_hourly["wave_height"][i],
-                wave_direction_deg=marine_hourly["wave_direction"][i],
-                wave_period_s=marine_hourly["wave_period"][i],
-                wind_wave_height_m=marine_hourly["wind_wave_height"][i],
-                wind_wave_period_s=marine_hourly.get("wind_wave_period", [None] * len(times))[i],
-                wind_speed_kmh=weather_hourly["wind_speed_10m"][i],
-                wind_direction_deg=weather_hourly["wind_direction_10m"][i],
+                wave_height_m=values["wave_height"],
+                wave_direction_deg=values["wave_direction"],
+                wave_period_s=values["wave_period"],
+                wind_wave_height_m=values["wind_wave_height"],
+                #wind_wave_period_s=wind_wave_period,
+                wind_speed_kmh=values["wind_speed"],
+                wind_direction_deg=values["wind_direction"],
             )
             forecasts.append(forecast)
         except Exception as e:
@@ -114,6 +132,7 @@ async def get_forecast(
             continue
 
     return forecasts
+
 
 
 
