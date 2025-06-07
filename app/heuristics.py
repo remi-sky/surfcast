@@ -95,7 +95,6 @@ def evaluate_surf_quality(spot: SurfSpot, forecast: MarineForecast) -> SurfForec
         wave_height_m=wave_height,
         wave_direction_deg=wave_dir,
         wind_wave_height_m=wind_wave_height,
-        wind_wave_period_s=forecast.wind_wave_period_s,
         wave_period_s=swell_period,
         wind_speed_kmh=wind_speed,
         wind_direction_deg=wind_dir,

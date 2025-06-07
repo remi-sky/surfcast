@@ -59,7 +59,7 @@ async def get_forecast(
         "end_date": end_date,
         "hourly": [
             "wave_height", "wave_direction", "wave_period",
-            "wind_wave_height", "wind_wave_period"
+            "wind_wave_height", 
         ],
         "timezone": timezone_str,
     }
@@ -107,12 +107,10 @@ async def get_forecast(
             "wind_direction": weather_hourly["wind_direction_10m"][i],
         }
 
-        # Optional value with fallback
-        #wind_wave_period = marine_hourly.get("wind_wave_period", [None] * len(times))[i]
-
         if any(v is None for v in values.values()):
             missing = [k for k, v in values.items() if v is None]
             print(f"[DEBUG] Skipping index {i} for {spot.name} due to missing: {missing}")
+            print(f"[DEBUG] Raw values for {spot.name}, index {i}, time {t}: {values}")
             continue
 
         try:
@@ -122,7 +120,6 @@ async def get_forecast(
                 wave_direction_deg=values["wave_direction"],
                 wave_period_s=values["wave_period"],
                 wind_wave_height_m=values["wind_wave_height"],
-                #wind_wave_period_s=wind_wave_period,
                 wind_speed_kmh=values["wind_speed"],
                 wind_direction_deg=values["wind_direction"],
             )
