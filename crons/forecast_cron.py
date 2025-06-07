@@ -34,6 +34,7 @@ async def process_spot(spot, spot_id: str):
 
     forecasts = await get_forecast(spot,tz_str, start_date=None, end_date=None)
  
+    print(f"[DEBUG] {spot.name} → {len(forecasts)} total valid forecasts from Open-Meteo")
   
     relevant_hours = [3, 6, 9, 12, 18, 21]
     rows = []
@@ -63,9 +64,10 @@ async def process_spot(spot, spot_id: str):
         except Exception as e:
             print(f"[ERROR] Parsing forecast for {spot.name}: {e}")
 
-    import json  # add this at the top if not already imported
+    
 
-    print(f"[INFO] Inserting {len(rows)} forecast rows for {spot.name}")
+    print(f"[DEBUG] {spot.name} → {len(rows)} rows after filtering by relevant hours")
+
     for row in rows:
         try:
             #print(f"[DEBUG] Attempting upsert for spot: {spot.name}")
