@@ -6,3 +6,4 @@ asyncpg
 pytz
 timezonefinder
 supabase
+requests
