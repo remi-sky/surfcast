@@ -36,7 +36,6 @@ class MarineForecast(BaseModel):
     wave_direction_deg: Optional[float] = None
     wind_wave_height_m: Optional[float] = None
     wind_wave_direction_deg: Optional[float] = None
-    wind_wave_period_s: Optional[float] = None
     wave_period_s: Optional[float] = None
     wind_speed_kmh: Optional[float] = None
     wind_direction_deg: Optional[float] = None
@@ -46,7 +45,6 @@ class SurfForecast(BaseModel):
     wave_height_m: float
     wave_direction_deg: Optional[float] = None
     wind_wave_height_m: Optional[float] = None
-    wind_wave_period_s: Optional[float] = None
     wave_period_s: Optional[float] = None
     wind_speed_kmh: Optional[float] = None
     wind_direction_deg: Optional[float] = None
