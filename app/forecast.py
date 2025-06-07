@@ -47,7 +47,7 @@ async def get_forecast(
     if not start_date:
         start_date = datetime.utcnow().date().isoformat()
     if not end_date:
-        end_date = (datetime.utcnow().date() + timedelta(days=14)).isoformat()
+        end_date = (datetime.utcnow().date() + timedelta(days=10)).isoformat()
 
     marine_url = "https://marine-api.open-meteo.com/v1/marine"
     weather_url = "https://api.open-meteo.com/v1/forecast"
