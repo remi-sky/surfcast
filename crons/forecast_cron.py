@@ -21,7 +21,7 @@ from app.heuristics import evaluate_surf_quality
 # Load env vars
 #load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 tf = TimezoneFinder()
 
