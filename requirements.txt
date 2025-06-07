@@ -7,3 +7,4 @@ pytz
 timezonefinder
 supabase
 requests
+bs4
