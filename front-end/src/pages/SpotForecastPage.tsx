@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { SurfForecast } from '../types';  // your shared type
 import { PageHeader } from '../components/PageHeader';
-import { PrimaryButton } from '../components/PrimaryButton';
 
 type Params = { spotId: string };
 
@@ -71,7 +70,7 @@ export default function SpotForecastPage() {
               </h2>
               <div className="space-y-2">
                 {dayForecasts.map(f => {
-                  const [_, timePart] = f.time.split('T');
+                  const [, timePart] = f.time.split('T');                 
                   const timeLabel = timePart.slice(0,5);
                   return (
                     <div
