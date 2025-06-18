@@ -7,31 +7,39 @@ interface Props {
 }
 
 export const ForecastRow: React.FC<Props> = ({ forecast }) => {
-  // Map only the four known ratings
+  // Parse ISO timestamp to date/time
+  const dt = new Date(forecast.time);
+  const dateLabel = dt.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const timeLabel = dt.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  // Rating classes
   const ratingClasses: Record<NonNullable<SurfForecast['rating']>, string> = {
-    Poor:      'text-rating-poor',
-    Fair:      'text-rating-fair',
-    Good:      'text-rating-good',
+    Poor: 'text-rating-poor',
+    Fair: 'text-rating-fair',
+    Good: 'text-rating-good',
     Excellent: 'text-rating-excellent',
   };
 
-  const colorClass = forecast.rating
-    ? ratingClasses[forecast.rating]
-    : 'text-gray-400';
+  const colorClass =
+    forecast.rating && ratingClasses[forecast.rating]
+      ? ratingClasses[forecast.rating]
+      : 'text-gray-400';
 
   return (
-    <div className="p-6 bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-        <div className="mb-3 md:mb-0">
-          <span className={`font-semibold ${colorClass}`}>
-            {forecast.rating}
-          </span>{' '}
-          <span className="text-white/80 text-sm">
-            {forecast.date} @ {forecast.time}
-          </span>
-        </div>
-        <p className="text-white/90 text-sm">{forecast.explanation}</p>
+    <div className="p-4 bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg mb-4">
+      <div className="mb-2">
+        <span className={`font-semibold ${colorClass}`}>{forecast.rating}</span>
+        <span className="ml-2 text-sm text-white/80">{dateLabel} @ {timeLabel}</span>
       </div>
+      <div className="text-sm text-white/90">{forecast.explanation}</div>
     </div>
   );
 };
