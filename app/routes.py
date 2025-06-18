@@ -16,9 +16,9 @@ from timezonefinder import TimezoneFinder
 from app.models import SurfForecast
 from uuid import UUID
 
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 # Load env vars
-load_dotenv()
+#load_dotenv()
 
 router = APIRouter()
 
