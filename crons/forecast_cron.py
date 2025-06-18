@@ -94,7 +94,7 @@ async def main():
     result = supabase.table("surf_spots").select("id, name").execute()
     id_map = {r["name"]: r["id"] for r in result.data}
 
-    for spot in SPOTS[:5]:
+    for spot in SPOTS:
         spot_id = id_map.get(spot.name)
         if not spot_id:
             print(f"[WARNING] No spot_id found for {spot.name}")
