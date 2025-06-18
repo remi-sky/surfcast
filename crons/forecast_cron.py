@@ -8,7 +8,6 @@ from typing import Optional
 import json
 
 import pytz
-from dotenv import load_dotenv
 from timezonefinder import TimezoneFinder
 from supabase import create_client, Client
 
@@ -18,8 +17,9 @@ from app.models import MarineForecast, SurfForecast
 from app.forecast import get_forecast
 from app.heuristics import evaluate_surf_quality
 
-# Load env vars
-load_dotenv()
+# Load env vars, comment for live deployment
+#from dotenv import load_dotenv
+#load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
