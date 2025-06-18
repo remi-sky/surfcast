@@ -27,7 +27,7 @@ export default function SpotForecastPage() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/spots/${spotId}/forecasts?days=10`)
+    fetch(`${API_BASE}/api/spots/${spotId}/forecasts?days=10`)
       .then(res => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json() as Promise<SurfForecast[]>;

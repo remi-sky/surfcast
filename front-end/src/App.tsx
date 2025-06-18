@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from './components/PageHeader';
 import { PrimaryButton } from './components/PrimaryButton';
+import { API_BASE } from './config';
 
 // Summarized forecast for display
 interface SummaryForecast {
@@ -109,7 +110,7 @@ const App: React.FC = () => {
     setError(null);
 
     fetch(
-      `/api/spots/forecasted?lat=${location.lat}&lon=${location.lon}&max_distance_km=500`
+      `${API_BASE}/api/spots/forecasted?lat=${location.lat}&lon=${location.lon}&max_distance_km=500`
     )
       .then(res => {
         if (!res.ok) throw new Error(res.statusText);
