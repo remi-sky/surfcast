@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException, Path
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timedelta, date
 
 from fastapi.responses import StreamingResponse
 from app.spots import SPOTS, SurfSpot
@@ -13,6 +13,12 @@ import asyncpg
 from collections import defaultdict
 import pytz
 from timezonefinder import TimezoneFinder
+from app.models import SurfForecast
+from uuid import UUID
+
+from dotenv import load_dotenv
+# Load env vars
+load_dotenv()
 
 router = APIRouter()
 
@@ -103,3 +109,80 @@ async def get_forecasted_spots(
     output.sort(key=lambda s: s["forecasts"][0]["date"] + s["forecasts"][0]["time"])
 
     return output
+
+
+@router.get(
+    "/api/spots/{spot_id}/forecasts",
+    response_model=list[SurfForecast],
+    summary="Get detailed hourly forecasts for a specific spot (future only)"
+)
+async def get_spot_forecasts(
+    spot_id: UUID = Path(..., description="UUID of the surf spot"),
+    days: int = Query(10, ge=1, le=30, description="Number of days ahead to fetch")
+):
+    # 1) Load spot info, including its IANA time zone and coords
+    lookup_sql = """
+        SELECT lat, lon, timezone
+        FROM surf_spots
+        WHERE id = $1
+    """
+    conn = await asyncpg.connect(DATABASE_URL)
+    spot = await conn.fetchrow(lookup_sql, spot_id)
+    if not spot:
+        await conn.close()
+        raise HTTPException(status_code=404, detail="Spot not found")
+
+    lat, lon, tz_name = spot["lat"], spot["lon"], spot["timezone"] or "UTC"
+    tz = pytz.timezone(tz_name)
+
+    # 2) Determine "now" in local time zone
+    now_local = datetime.now(tz)
+
+    # 3) Define date window
+    start_date = now_local.date()
+    end_date = start_date + timedelta(days=days)
+
+    # 4) Fetch rows in date window (using timestamp_local for filtering by date)
+    sql = """
+        SELECT timestamp_utc, timestamp_local, date_local,
+               wave_height_m, wave_period_s, wave_direction_deg,
+               wind_speed_kmh, wind_direction_deg, wind_type,
+               surf_rating, explanation, wind_wave_height_m
+        FROM surf_forecast_hourly
+        WHERE spot_id = $1
+          AND timestamp_local::date BETWEEN $2 AND $3
+        ORDER BY timestamp_utc
+    """
+    try:
+        rows = await conn.fetch(sql, spot_id, start_date, end_date)
+    finally:
+        await conn.close()
+
+    # 5) Filter future entries and map to SurfForecast
+    forecasts = []
+    for r in rows:
+        # convert UTC timestamp to aware local time
+        dt_utc = r["timestamp_utc"].replace(tzinfo=pytz.utc)
+        dt_local = dt_utc.astimezone(tz)
+        if dt_local < now_local:
+            continue
+        forecasts.append(
+            SurfForecast(
+                time=dt_local.isoformat(),
+                timezone=tz_name,
+                wave_height_m=r["wave_height_m"],
+                wave_direction_deg=r.get("wave_direction_deg"),
+                wind_wave_height_m=r.get("wind_wave_height_m"),
+                wave_period_s=r.get("wave_period_s"),
+                wind_speed_kmh=r.get("wind_speed_kmh"),
+                wind_direction_deg=r.get("wind_direction_deg"),
+                wind_type=r.get("wind_type"),
+                explanation=r.get("explanation"),
+                rating=r.get("surf_rating"),
+            )
+        )
+
+    if not forecasts:
+        raise HTTPException(status_code=404, detail="No future forecasts available")
+
+    return forecasts

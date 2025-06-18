@@ -8,7 +8,7 @@ from typing import Optional
 import json
 
 import pytz
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
 from timezonefinder import TimezoneFinder
 from supabase import create_client, Client
 
@@ -19,7 +19,7 @@ from app.forecast import get_forecast
 from app.heuristics import evaluate_surf_quality
 
 # Load env vars
-#load_dotenv()
+load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -94,7 +94,7 @@ async def main():
     result = supabase.table("surf_spots").select("id, name").execute()
     id_map = {r["name"]: r["id"] for r in result.data}
 
-    for spot in SPOTS:
+    for spot in SPOTS[:5]:
         spot_id = id_map.get(spot.name)
         if not spot_id:
             print(f"[WARNING] No spot_id found for {spot.name}")

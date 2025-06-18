@@ -43,6 +43,7 @@ class MarineForecast(BaseModel):
 class SurfForecast(BaseModel):
     time: str
     wave_height_m: float
+    timezone: Optional[str] = None
     wave_direction_deg: Optional[float] = None
     wind_wave_height_m: Optional[float] = None
     wave_period_s: Optional[float] = None

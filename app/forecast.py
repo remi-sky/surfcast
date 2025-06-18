@@ -73,6 +73,8 @@ async def get_forecast(
         "timezone": timezone_str,
     }
 
+    print(f"[DEBUG] Fetching marine data for {spot.name} from {marine_url} with params: {marine_params}")
+
     marine_data = await fetch_with_retry(marine_url, marine_params, "marine forecast", spot.name)
     weather_data = await fetch_with_retry(weather_url, weather_params, "weather forecast", spot.name)
 
