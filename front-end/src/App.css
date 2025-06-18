@@ -1,8 +1,13 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  --gradient-start: #FF7E5F; /* sunrise orange */
+  --gradient-end:   #FEB47B; /* sunset peach */
+  --accent-teal:    #2AB7CA; /* surf-water teal */
+  --rating-poor:    #E63946; /* red */
+  --rating-fair:    #F4A261; /* orange */
+  --rating-good:    #2AB7CA; /* teal */
+  --rating-excellent: #457B9D; /* deep blue */
+  --text-primary:   #1D3557; /* dark navy */
+  --bg-page:        #FFFFFF;
 }
 
 .logo {

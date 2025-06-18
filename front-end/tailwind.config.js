@@ -1,10 +1,22 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
     content: [
       './index.html',
-      './src/**/*.{js,jsx,ts,tsx}'
+      './src/**/*.{js,jsx,ts,tsx}',
     ],
-    theme: { extend: {} },
+    theme: {
+      extend: {
+        colors: {
+          'gradient-start': 'var(--gradient-start)',
+          'gradient-end':   'var(--gradient-end)',
+          'accent-teal':    'var(--accent-teal)',
+        },
+        backdropBlur: {
+          // ensure blur-lg is available
+          lg: '20px',
+        }
+      },
+    },
     plugins: [],
   };
   
