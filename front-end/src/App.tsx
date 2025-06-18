@@ -1,5 +1,6 @@
 // src/App.tsx
-import React, { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './index.css';
 import { PageHeader } from './components/PageHeader';
