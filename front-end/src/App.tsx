@@ -137,7 +137,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-700">
+    <div className="min-h-screen bg-gradient-to-r from-gradient-start to-gradient-end p-4">
       <PageHeader title="Surf Forecast Near You 🏄‍♂️" />
 
       <div className="px-4">
