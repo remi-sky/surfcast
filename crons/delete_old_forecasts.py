@@ -3,6 +3,13 @@ import os
 import asyncpg
 from datetime import datetime, timedelta
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+
+
 DATABASE_URL = os.getenv("SUPABASE_DB_URL")
 
 async def run():

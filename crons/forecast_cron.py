@@ -17,9 +17,14 @@ from app.models import MarineForecast, SurfForecast
 from app.forecast import get_forecast
 from app.heuristics import evaluate_surf_quality
 
-# Load env vars, comment for live deployment
-#from dotenv import load_dotenv
-#load_dotenv()
+
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)

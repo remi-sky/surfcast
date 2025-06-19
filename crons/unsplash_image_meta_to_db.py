@@ -3,9 +3,14 @@ import csv
 import asyncio
 import asyncpg
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+
+
 
 SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")

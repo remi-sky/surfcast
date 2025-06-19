@@ -16,9 +16,12 @@ from timezonefinder import TimezoneFinder
 from app.models import SurfForecast
 from uuid import UUID
 
-#from dotenv import load_dotenv
-# Load env vars
-#load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+
 
 router = APIRouter()
 

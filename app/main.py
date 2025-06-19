@@ -4,8 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router
 
-#from dotenv import load_dotenv
-#load_dotenv()
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+
+
 
 app = FastAPI(title="Surf Forecast MVP")
 
