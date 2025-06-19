@@ -4,6 +4,11 @@ module.exports = {
       './index.html',
       './src/**/*.{js,jsx,ts,tsx}',
     ],
+    safelist: [
+      'bg-gradient-to-r',
+      'from-gradient-start',
+      'to-gradient-end',
+    ],
     theme: {
       extend: {
         colors: {
@@ -12,9 +17,8 @@ module.exports = {
           'accent-teal':    'var(--accent-teal)',
         },
         backdropBlur: {
-          // ensure blur-lg is available
           lg: '20px',
-        }
+        },
       },
     },
     plugins: [],
