@@ -11,10 +11,4 @@
 @tailwind components;
 @tailwind utilities;
 
-/* global overrides */
-html, body {
-  min-height: 100%;
-  margin: 0;
-  background-color: var(--gradient-start);
-  font-family: Poppins, system-ui, Avenir, Helvetica, Arial, sans-serif;
-}
+
