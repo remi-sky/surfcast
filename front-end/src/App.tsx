@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from './components/PageHeader';
@@ -125,7 +125,6 @@ export default function App(){
             value={query} onChange={e=>setQuery(e.target.value)}
           />
           <PrimaryButton
-            type="submit"
             className="bg-accent-teal text-white px-4 py-2 rounded-r-lg"
           >
             Search
