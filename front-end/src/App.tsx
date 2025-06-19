@@ -6,184 +6,192 @@ import { PageHeader } from './components/PageHeader';
 import { PrimaryButton } from './components/PrimaryButton';
 import { API_BASE } from './config';
 
-// Summarized forecast for display
+// Types
 interface SummaryForecast {
   date: string;
   time: string;
   rating: string;
   explanation: string;
 }
-
-// Spot metadata + forecasts
 interface Spot {
   id: string;
   name: string;
-  region: string;
   lat: number;
   lon: number;
   forecasts: SummaryForecast[];
+  distance: number;
 }
-
-// Geocoded location
 interface Location {
   lat: number;
   lon: number;
   name: string;
 }
 
-// Default fallbacks by IANA timezone
+// Default fallback locations
 const defaultLocations: Record<string, Location> = {
   'Europe/London':       { lat: 51.5072, lon: -0.1276, name: 'London, UK' },
   'America/New_York':    { lat: 40.7128, lon: -74.0060, name: 'New York, US' },
   'America/Los_Angeles': { lat: 34.0522, lon: -118.2437, name: 'Los Angeles, US' },
-  'Europe/Paris':        { lat: 48.8566, lon: 2.3522,   name: 'Paris, FR' },
+  'Europe/Paris':        { lat: 48.8566, lon:   2.3522, name: 'Paris, FR' },
   'Asia/Tokyo':          { lat: 35.6895, lon: 139.6917, name: 'Tokyo, JP' },
 };
 
-/**
- * Geocode a free-text location via OSM Nominatim
- */
-async function geocodeOSM(query: string): Promise<Location> {
-  const url = `https://nominatim.openstreetmap.org/search` +
-              `?q=${encodeURIComponent(query)}` +
-              `&format=json&limit=1&addressdetails=1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Geocoding error: ${res.statusText}`);
-  const data = await res.json();
-  if (!data.length) throw new Error('Location not found');
-  const addr = data[0].address || {};
-  const locality    = addr.city || addr.town || addr.village || addr.county;
-  const region      = addr.state || addr.region;
-  const countryCode = addr.country_code?.toUpperCase();
-  const parts: string[] = [];
-  if (locality)    parts.push(locality);
-  if (region)      parts.push(region);
-  if (countryCode) parts.push(countryCode);
-  const name = parts.join(', ') || data[0].display_name.split(',').slice(0,3).join(', ');
-  return { lat: +data[0].lat, lon: +data[0].lon, name };
+/** Haversine for miles */
+function getDistanceMiles(lat1:number,lon1:number,lat2:number,lon2:number):number{
+  const toRad=(d:number)=>(d*Math.PI)/180;
+  const R=6371;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c*0.621371;
 }
 
-/**
- * A simple card showing one forecast
- */
-const SummaryRow: React.FC<{ forecast: SummaryForecast }> = ({ forecast }) => (
-  <div className="p-4 bg-white border border-gray-light rounded-lg mb-2 hover:shadow-md transition-shadow">
-    <div className="flex flex-col md:flex-row md:justify-between">
-      <div className="mb-2 md:mb-0">
-        <span className="font-semibold">{forecast.rating}</span>{' '}
-        <span className="text-gray-500 text-sm">
-          {forecast.date} @ {forecast.time}
-        </span>
-      </div>
-      <p className="text-gray-700 text-sm">{forecast.explanation}</p>
-    </div>
-  </div>
-);
+/** OSM geocode helper */
+async function geocodeOSM(query:string):Promise<Location>{
+  const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error(`Geocoding error: ${res.statusText}`);
+  const data=await res.json();
+  if(!data.length) throw new Error('Location not found');
+  const addr=data[0].address||{};
+  const locality=addr.city||addr.town||addr.village||addr.county;
+  const region=addr.state||addr.region;
+  const country=addr.country_code?.toUpperCase();
+  const parts=[locality,region,country].filter(Boolean as any);
+  const name=parts.join(', ')||data[0].display_name.split(',').slice(0,3).join(', ');
+  return{lat:+data[0].lat,lon:+data[0].lon,name};
+}
 
-const App: React.FC = () => {
-  const navigate = useNavigate();
-  const [spots, setSpots]         = useState<Spot[]>([]);
-  const [location, setLocation]   = useState<Location | null>(null);
-  const [query, setQuery]         = useState<string>('');
-  const [loading, setLoading]     = useState<boolean>(false);
-  const [error, setError]         = useState<string | null>(null);
+export default function App(){
+  const navigate=useNavigate();
+  const [spots,setSpots]=useState<Spot[]>([]);
+  const [location,setLocation]=useState<Location|null>(null);
+  const [query,setQuery]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [qualityFilter,setQualityFilter]=useState<string[]>(['Fair','Good','Excellent']);
 
-  // 1) Initialize default based on browser timezone
-  useEffect(() => {
-    if (location) return;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const def = defaultLocations[tz];
-    if (def) {
-      setLocation(def);
-    } else {
-      const city = tz.split('/')[1]?.replace(/_/g, ' ') || tz;
-      geocodeOSM(city)
-        .then(loc => setLocation(loc))
-        .catch(() => setLocation({ lat: 0, lon: 0, name: city }));
+  // init location
+  useEffect(()=>{
+    if(location) return;
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const def=defaultLocations[tz];
+    if(def) setLocation(def);
+    else{const city=tz.split('/')[1]?.replace(/_/g,' ')||tz;
+      geocodeOSM(city).then(setLocation).catch(()=>setLocation({lat:0,lon:0,name:city}));
     }
-  }, [location]);
+  },[location]);
 
-  // 2) Fetch spots when location is set
-  useEffect(() => {
-    if (!location) return;
-    setLoading(true);
-    setError(null);
-
-    fetch(
-      `${API_BASE}/api/spots/forecasted?lat=${location.lat}&lon=${location.lon}&max_distance_km=500`
-    )
-      .then(res => {
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json() as Promise<Spot[]>;
+  // fetch and sort
+  useEffect(()=>{
+    if(!location) return;
+    setLoading(true);setError(null);
+    fetch(`${API_BASE}/api/spots/forecasted?lat=${location.lat}&lon=${location.lon}&max_distance_km=500`)
+      .then(r=>r.ok?r.json() as Promise<Spot[]>:Promise.reject(r.statusText))
+      .then(data=>{
+        const aug=data.map(s=>({
+          ...s,
+          distance:getDistanceMiles(location.lat,location.lon,s.lat,s.lon),
+        }));
+        aug.sort((a,b)=>a.distance-b.distance);
+        setSpots(aug);
       })
-      .then(data => setSpots(data))
-      .catch(err => setError(err.message || 'Failed fetching spots'))
-      .finally(() => setLoading(false));
-  }, [location]);
+      .catch(e=>setError(String(e)))
+      .finally(()=>setLoading(false));
+  },[location]);
 
-  // 3) Handle manual search override
-  const handleSearch = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!query) return;
-    setError(null);
-    try {
-      const loc = await geocodeOSM(query);
-      setLocation(loc);
-    } catch (err: unknown) {
-      // Narrow unknown to derive a message
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-    }
+  const handleSearch=async(e:FormEvent)=>{
+    e.preventDefault();if(!query) return;setError(null);
+    try{const loc=await geocodeOSM(query);setLocation(loc);}catch(err:any){setError(err.message);}
   };
 
-  return (
+  const toggleQuality=(q:string)=>{
+    setQualityFilter(qv=>qv.includes(q)?qv.filter(x=>x!==q):[...qv,q]);
+  };
+
+  return(
     <div className="min-h-screen bg-gradient-to-r from-gradient-start to-gradient-end p-4">
-      <PageHeader title="Surf Forecast Near You 🏄‍♂️" />
+      <PageHeader title="Surf Opportunities 🏄‍♂️" />
+      <div className="px-4 text-white">
+        {location? <p className="mb-2">Closest to <strong>{location.name}</strong></p>:
+          <p className="italic mb-2">Detecting location…</p>}
 
-      <div className="px-4">
-        {location ? (
-          <p className="mb-2">
-            Using <strong>{location.name}</strong>
-          </p>
-        ) : (
-          <p className="italic mb-2">Detecting location via timezone…</p>
-        )}
-
-        <form onSubmit={handleSearch} className="mb-4 flex">
+        {/* Search */}
+        <form onSubmit={handleSearch} className="flex mb-4">
           <input
-            type="text"
-            placeholder="Or enter city, town or postcode"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="flex-1 border border-gray-light rounded-l-lg p-2 focus:outline-none"
+            className="flex-1 px-3 py-2 rounded-l-lg border border-white text-black"
+            placeholder="City, town or postcode"
+            value={query} onChange={e=>setQuery(e.target.value)}
           />
-          <button
+          <PrimaryButton
             type="submit"
-            className="bg-ocean text-white px-4 rounded-r-lg font-medium"
+            className="bg-accent-teal text-white px-4 py-2 rounded-r-lg"
           >
             Search
-          </button>
+          </PrimaryButton>
         </form>
 
-        {loading && <p className="py-4">Loading forecasts…</p>}
-        {error   && <p className="text-red-600 py-4">Error: {error}</p>}
+        {/* Quality toggles */}
+        <div className="flex space-x-2 mb-6">
+          {['Fair','Good','Excellent'].map(q=>(
+            <button
+              key={q}
+              onClick={()=>toggleQuality(q)}
+              className={
+                `px-3 py-1 rounded-full text-sm font-medium transition `+
+                (qualityFilter.includes(q)
+                  ? 'bg-accent-teal text-white'
+                  : 'bg-white/30 text-white/70')
+              }
+            >{q}</button>
+          ))}
+        </div>
 
-        {!loading && !error && spots.map(spot => (
-          <div key={spot.id} className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">{spot.name}</h2>
-              <PrimaryButton onClick={() => navigate(`/spots/${spot.id}/forecast`)}>
-                View 10-day forecast
-              </PrimaryButton>
-            </div>
-            {spot.forecasts[0] && (
-              <SummaryRow forecast={spot.forecasts[0]} />
-            )}
-          </div>
-        ))}
+        {loading && <p className="py-4">Loading forecasts…</p>}
+        {error && <p className="text-red-400">Error: {error}</p>}
+
+        {/* Spot cards */}
+        <div className="space-y-8">
+          {spots.map(spot=>{
+            const filtered=spot.forecasts.filter(f=>qualityFilter.includes(f.rating));
+            if(!filtered.length) return null;
+            // group by date
+            const groups: Record<string,SummaryForecast[]> = {};
+            filtered.forEach(f=>{(groups[f.date]||(groups[f.date]=[])).push(f);});
+
+            return(
+              <div key={spot.id} className="relative p-6 bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg">
+                <div className="flex justify-between items-baseline mb-3">
+                  <h2 className="text-xl font-semibold text-white drop-shadow">
+                    {spot.name} <span className="text-sm font-normal">({spot.distance.toFixed(1)} mi)</span>
+                  </h2>
+                </div>
+
+                {/* forecast groups */}
+                {Object.entries(groups).map(([date,items])=>(
+                  <div key={date} className="mb-4">
+                    <h3 className="font-semibold text-white">
+                      {new Date(date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
+                    </h3>
+                    <ul className="pl-4">
+                      {items.map(f=>(
+                        <li key={f.time} className="text-sm text-white/90 mb-1">
+                          <span className="font-medium capitalize">{f.rating}</span> — {f.explanation}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                   <div className="flex justify-end mt-4">
+                   <PrimaryButton onClick={() => navigate(`/spots/${spot.id}/forecast`)} className="px-3 py-1 bg-accent-teal text-white rounded-full text-sm hover:opacity-90 transition">
+                       View Forecast
+                    </PrimaryButton>
+                  </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 };
-
-export default App;
