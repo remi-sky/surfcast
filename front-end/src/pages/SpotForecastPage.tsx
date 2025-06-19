@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { SurfForecast } from '../types';  // your shared type
 import { PageHeader } from '../components/PageHeader';
+import { API_BASE } from '../config';
 
 type Params = { spotId: string };
 
