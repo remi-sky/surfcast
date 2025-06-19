@@ -57,7 +57,8 @@ async function geocodeOSM(query:string):Promise<Location>{
   const locality=addr.city||addr.town||addr.village||addr.county;
   const region=addr.state||addr.region;
   const country=addr.country_code?.toUpperCase();
-  const parts=[locality,region,country].filter(Boolean as any);
+  // Only keep the defined strings, no `any` needed
+  const parts = [locality, region, country].filter((x): x is string => Boolean(x));
   const name=parts.join(', ')||data[0].display_name.split(',').slice(0,3).join(', ');
   return{lat:+data[0].lat,lon:+data[0].lon,name};
 }
@@ -102,7 +103,7 @@ export default function App(){
 
   const handleSearch=async(e:FormEvent)=>{
     e.preventDefault();if(!query) return;setError(null);
-    try{const loc=await geocodeOSM(query);setLocation(loc);}catch(err:any){setError(err.message);}
+    try{const loc=await geocodeOSM(query);setLocation(loc);}catch(err:unknown){setError(err instanceof Error ? err.message : String(err));}
   };
 
   const toggleQuality=(q:string)=>{
