@@ -83,10 +83,10 @@ export default function SpotForecastPage() {
                         {f.rating ?? 'N/A'}
                       </span>
                       <span className="w-1/6 text-sm">
-                        {f.wave_height_m.toFixed(2)} m
+                        {f.swell_wave_height.toFixed(2)} m
                       </span>
                       <span className="w-1/6 text-sm">
-                        {(f.wave_period_s ?? 0).toFixed(1)} s
+                        {(f.swell_wave_peak_period ?? 0).toFixed(1)} s
                       </span>
                       <span className="w-1/6 text-sm">
                         {(f.wind_speed_kmh ?? 0).toFixed(0)} km/h

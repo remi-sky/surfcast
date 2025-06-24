@@ -18,7 +18,7 @@ async def check_forecast(spot: SurfSpot):
             "lon": spot.lon,
             "success": success,
             "error_message": "" if success else "No forecast returned",
-            "wave_height": forecast[0].wave_height_m if success and forecast else None
+            "wave_height": forecast[0].swell_wave_height if success and forecast else None
         }
     except Exception as e:
         return {

@@ -23,10 +23,10 @@ export interface SummaryForecast {
   
   export interface SurfForecast {
     time: string;
-    wave_height_m: number;
-    wave_direction_deg?: number;
+    swell_wave_height: number;
+    swell_wave_direction?: number;
     wind_wave_height_m?: number;
-    wave_period_s?: number;           // ← added
+    swell_wave_peak_period?: number;           // ← added
     wind_speed_kmh?: number;
     wind_direction_deg?: number;
     wind_type?: string;

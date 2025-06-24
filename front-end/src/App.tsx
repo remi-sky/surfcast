@@ -157,7 +157,7 @@ export default function App(){
           <div className="mb-6">
           <p className="text-white/80 text-sm mb-1">Surf Quality</p>
           <div className="flex space-x-2">
-            {['Fair','Good','Excellent'].map(q => (
+            {['Playable','Solid','Firing'].map(q => (
               <button
                 key={q}
                 onClick={() => toggleQuality(q)}

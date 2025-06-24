@@ -29,7 +29,7 @@ DATABASE_URL = os.getenv("SUPABASE_DB_URL")
 tf = TimezoneFinder()
 
 # Rating priority for sorting
-rating_priority = {"Excellent": 3, "Good": 2, "Fair": 1, "Poor": 0}
+rating_priority = {"Firing": 4, "Solid": 3, "Playable": 2, "Sketchy": 1, "Lake Mode":0}
 
 @router.get("/api/spots/forecasted")
 async def get_forecasted_spots(
@@ -40,7 +40,7 @@ async def get_forecasted_spots(
     query = """
     SELECT
         s.id, s.name, s.lat, s.lon, s.region, s.town, s.surf_benchmark_url,
-        f.timestamp_utc, f.surf_rating, f.explanation
+        f.timestamp_utc, f.surf_rating, f.explanation, f.swell_wave_height, f.swell_wave_peak_period, f.wind_speed_kmh, f.wind_type, f.wind_severity
     FROM surf_spots s
     JOIN surf_forecast_hourly f ON f.spot_id = s.id
     WHERE ST_DWithin(
@@ -48,8 +48,8 @@ async def get_forecasted_spots(
         ST_SetSRID(ST_MakePoint($1, $2), 4326),
         $3 * 1000
     )
-    AND f.timestamp_utc >= NOW()::date
-    AND f.surf_rating IN ('Fair', 'Good', 'Excellent')
+    AND f.timestamp_utc >= (NOW() AT TIME ZONE 'UTC')::date
+    AND f.surf_rating IN ('Firing', 'Solid', 'Playable')
     ORDER BY s.id, f.timestamp_utc
     """
 
@@ -148,9 +148,9 @@ async def get_spot_forecasts(
     # 4) Fetch rows in date window (using timestamp_local for filtering by date)
     sql = """
         SELECT timestamp_utc, timestamp_local, date_local,
-               wave_height_m, wave_period_s, wave_direction_deg,
+               swell_wave_height, swell_wave_peak_period, swell_wave_direction,
                wind_speed_kmh, wind_direction_deg, wind_type,
-               surf_rating, explanation, wind_wave_height_m
+               surf_rating, explanation, wind_wave_height_m, wind_severity
         FROM surf_forecast_hourly
         WHERE spot_id = $1
           AND timestamp_local::date BETWEEN $2 AND $3
@@ -173,13 +173,14 @@ async def get_spot_forecasts(
             SurfForecast(
                 time=dt_local.isoformat(),
                 timezone=tz_name,
-                wave_height_m=r["wave_height_m"],
-                wave_direction_deg=r.get("wave_direction_deg"),
+                swell_wave_height=r["swell_wave_height"],
+                swell_wave_direction=r.get("swell_wave_direction"),
                 wind_wave_height_m=r.get("wind_wave_height_m"),
-                wave_period_s=r.get("wave_period_s"),
+                swell_wave_peak_period=r.get("swell_wave_peak_period"),
                 wind_speed_kmh=r.get("wind_speed_kmh"),
                 wind_direction_deg=r.get("wind_direction_deg"),
                 wind_type=r.get("wind_type"),
+                wind_severity=r.get("wind_severity"),
                 explanation=r.get("explanation"),
                 rating=r.get("surf_rating"),
             )

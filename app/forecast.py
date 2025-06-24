@@ -58,7 +58,7 @@ async def get_forecast(
         "start_date": start_date,
         "end_date": end_date,
         "hourly": [
-            "wave_height", "wave_direction", "wave_period",
+            "swell_wave_height", "swell_wave_direction", "swell_wave_peak_period",
             "wind_wave_height", 
         ],
         "timezone": timezone_str,
@@ -87,7 +87,7 @@ async def get_forecast(
 
     # Check critical keys before continuing
     required_keys = [
-        "time", "wave_height", "wave_direction", "wave_period",
+        "time", "swell_wave_height", "swell_wave_direction", "swell_wave_peak_period",
         "wind_wave_height", "wind_speed_10m", "wind_direction_10m"
     ]
     for key in required_keys:
@@ -101,9 +101,9 @@ async def get_forecast(
     for i, t in enumerate(times):
         # Defensive: check for None in critical fields
         values = {
-            "wave_height": marine_hourly["wave_height"][i],
-            "wave_direction": marine_hourly["wave_direction"][i],
-            "wave_period": marine_hourly["wave_period"][i],
+            "swell_wave_height": marine_hourly["swell_wave_height"][i],
+            "swell_wave_direction": marine_hourly["swell_wave_direction"][i],
+            "swell_wave_peak_period": marine_hourly["swell_wave_peak_period"][i],
             "wind_wave_height": marine_hourly["wind_wave_height"][i],
             "wind_speed": weather_hourly["wind_speed_10m"][i],
             "wind_direction": weather_hourly["wind_direction_10m"][i],
@@ -118,9 +118,9 @@ async def get_forecast(
         try:
             forecast = MarineForecast(
                 time=t,
-                wave_height_m=values["wave_height"],
-                wave_direction_deg=values["wave_direction"],
-                wave_period_s=values["wave_period"],
+                swell_wave_height=values["swell_wave_height"],
+                swell_wave_direction=values["swell_wave_direction"],
+                swell_wave_peak_period=values["swell_wave_peak_period"],
                 wind_wave_height_m=values["wind_wave_height"],
                 wind_speed_kmh=values["wind_speed"],
                 wind_direction_deg=values["wind_direction"],
@@ -212,7 +212,7 @@ def scrape_surf_forecast(url: str):
             "datetime": dt.isoformat(),
             "rating": ratings[i],
             "wave_height": heights[i],
-            "wave_period": periods[i],
+            "swell_wave_peak_period": periods[i],
             "wind": winds[i],
         })
 

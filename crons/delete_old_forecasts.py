@@ -7,7 +7,7 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    print("[WARNING] variable not loaded from .env, environment variables will only load from prod environment")
+    print("[WARNING] dotenv not installed, environment variables will only load from prod environment")
 
 
 DATABASE_URL = os.getenv("SUPABASE_DB_URL")
