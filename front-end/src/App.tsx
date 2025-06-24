@@ -70,17 +70,28 @@ export default function App(){
   const [query,setQuery]=useState('');
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
-  const [qualityFilter,setQualityFilter]=useState<string[]>(['Fair','Good','Excellent']);
+  const [hasEditedQuery, setHasEditedQuery] = useState(false);
+  const [qualityFilter, setQualityFilter] = useState<string[]>([]);
 
   // init location
   useEffect(()=>{
-    if(location) return;
-    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const def=defaultLocations[tz];
-    if(def) setLocation(def);
-    else{const city=tz.split('/')[1]?.replace(/_/g,' ')||tz;
-      geocodeOSM(city).then(setLocation).catch(()=>setLocation({lat:0,lon:0,name:city}));
-    }
+  if(location) return;
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const def=defaultLocations[tz];
+  if(def) {
+  setLocation(def);
+  setQuery(def.name); // <-- add this line
+  } else {
+  const city=tz.split('/')[1]?.replace(/_/g,' ')||tz;
+  geocodeOSM(city).then(loc => {
+    setLocation(loc);
+    setQuery(loc.name); // <-- add this line
+  }).catch(() => {
+    const fallback = {lat:0,lon:0,name:city};
+    setLocation(fallback);
+    setQuery(city); // <-- add this line
+  });
+}
   },[location]);
 
   // fetch and sort
@@ -102,8 +113,16 @@ export default function App(){
   },[location]);
 
   const handleSearch=async(e:FormEvent)=>{
-    e.preventDefault();if(!query) return;setError(null);
-    try{const loc=await geocodeOSM(query);setLocation(loc);}catch(err:unknown){setError(err instanceof Error ? err.message : String(err));}
+    e.preventDefault();
+    if(!query) return;
+    setError(null);
+    try {
+      const loc = await geocodeOSM(query);
+      setLocation(loc);
+      setQuery(loc.name); // <-- add this line
+    } catch(err:unknown){
+      setError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const toggleQuality=(q:string)=>{
@@ -112,18 +131,21 @@ export default function App(){
 
   return(
     <div className="min-h-screen bg-gradient-to-r from-gradient-start to-gradient-end p-4">
-      <PageHeader title="Surf Opportunities 🏄‍♂️" />
+      <PageHeader title="Surf more, with less planning 🏄‍♂️" />
       <div className="px-4 text-white">
-        {location? <p className="mb-2">Closest to <strong>{location.name}</strong></p>:
+        {location? <p className="mb-2">Discover surfable spots nearby over the next 10 days</p>:
           <p className="italic mb-2">Detecting location…</p>}
 
         {/* Search */}
         <form onSubmit={handleSearch} className="flex mb-4">
-          <input
-            className="flex-1 px-3 py-2 rounded-l-lg border border-white text-black"
-            placeholder="City, town or postcode"
-            value={query} onChange={e=>setQuery(e.target.value)}
-          />
+        <input className="flex-1 px-3 py-2 rounded-l-lg border border-white text-black" placeholder="City, town or postcode" value={query} onChange={e => {
+          setQuery(e.target.value);
+          setHasEditedQuery(true);
+      }}
+    onFocus={() => {
+    if (!hasEditedQuery) setQuery('');
+    }}
+/>
           <PrimaryButton
             className="bg-accent-teal text-white px-4 py-2 rounded-r-lg"
           >
@@ -131,21 +153,26 @@ export default function App(){
           </PrimaryButton>
         </form>
 
-        {/* Quality toggles */}
-        <div className="flex space-x-2 mb-6">
-          {['Fair','Good','Excellent'].map(q=>(
-            <button
-              key={q}
-              onClick={()=>toggleQuality(q)}
-              className={
-                `px-3 py-1 rounded-full text-sm font-medium transition `+
-                (qualityFilter.includes(q)
-                  ? 'bg-accent-teal text-white'
-                  : 'bg-white/30 text-white/70')
-              }
-            >{q}</button>
-          ))}
-        </div>
+        {/* Surf Quality Filter */}
+          <div className="mb-6">
+          <p className="text-white/80 text-sm mb-1">Surf Quality</p>
+          <div className="flex space-x-2">
+            {['Fair','Good','Excellent'].map(q => (
+              <button
+                key={q}
+                onClick={() => toggleQuality(q)}
+                className={
+                  `px-3 py-1 rounded-full text-sm font-medium transition ` +
+                  (qualityFilter.includes(q)
+                    ? 'bg-accent-teal text-white'
+                    : 'bg-white/30 text-white/70')
+                }
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          </div>
 
         {loading && <p className="py-4">Loading forecasts…</p>}
         {error && <p className="text-red-400">Error: {error}</p>}
@@ -153,7 +180,11 @@ export default function App(){
         {/* Spot cards */}
         <div className="space-y-8">
           {spots.map(spot=>{
-            const filtered=spot.forecasts.filter(f=>qualityFilter.includes(f.rating));
+            
+            const filtered = qualityFilter.length
+            ? spot.forecasts.filter(f => qualityFilter.includes(f.rating))
+            : spot.forecasts;
+
             if(!filtered.length) return null;
             // group by date
             const groups: Record<string,SummaryForecast[]> = {};
