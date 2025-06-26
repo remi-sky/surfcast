@@ -150,56 +150,47 @@ export default function SpotForecastPage() {
                 {formatDateHeader(date)}
               </h2>
 
-              <div className="hidden sm:grid grid-cols-4 text-xs text-white/70 mb-2">
-                <div>Time</div>
-                <div>Surf Potential</div>
-                <div>Swell</div>
-                <div>Wind</div>
-              </div>
+            <div className="space-y-4">
+              {filteredForecasts.map(f => {
+                const [, timePart] = f.time.split('T');
+                const hour = parseInt(timePart.slice(0, 2));
+                const minutes = timePart.slice(3, 5);
+                const ampmHour = ((hour + 11) % 12 + 1); // converts 0–23 to 1–12
+                const period = hour < 12 ? 'am' : 'pm';
+                const timeLabel = `${ampmHour}:${minutes} ${period}`;
 
-              <div className="space-y-4">
-                {filteredForecasts.map(f => {
-                  const [, timePart] = f.time.split('T');
-                  const timeLabel = timePart.slice(0, 5);
-                  const arrowDeg = f.swell_wave_direction ?? 0;
+                const swell = `${f.swell_wave_height.toFixed(2)}m @ ${f.swell_wave_peak_period?.toFixed(1) ?? '?'}s`;
+                const wind = `${f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h ${f.wind_type}${f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}`;
 
-                  const dotColor = {
-                    'Lake Mode': 'bg-gray-300',
-                    'Sketchy': 'bg-yellow-400',
-                    'Playable': 'bg-blue-400',
-                    'Solid': 'bg-purple-500',
-                    'Firing': 'bg-red-500',
-                  }[f.rating] || 'bg-white';
+                return (
+                  <div key={f.time} className="p-3 rounded-lg bg-white/10 text-white/90 space-y-1">
+  <div className="flex justify-between items-center">
+    <div className="text-sm font-semibold">{timeLabel}</div>
+    <div className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white">
+      {f.rating}
+    </div>
+  </div>
+  <div className="flex items-center gap-2 text-sm">
+    <span>🌊</span>
+    <span>
+      {f.swell_wave_height.toFixed(2)}m @ {f.swell_wave_peak_period?.toFixed(1) ?? '?'}s
+    </span>
+    <SwellArrow direction={f.swell_wave_direction ?? 0} />
+  </div>
+  <div className="flex items-center gap-2 text-sm">
+    <span>💨</span>
+    <span>
+      {f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h {f.wind_type}
+      {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}
+    </span>
+  </div>
+</div>
 
-                  return (
-                    <div key={f.time} className="flex flex-col sm:grid sm:grid-cols-4 gap-1 sm:gap-0 text-sm text-white">
-                      {/* Time */}
-                      <div>{timeLabel}</div>
+                );
+              })}
+            </div>
+          </section>
 
-                      {/* Surf Potential with dot */}
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-                        <span className="text-xs">{f.rating}</span>
-                      </div>
-
-                      {/* Swell */}
-                      <div className="flex items-center gap-1">
-                        <SwellArrow direction={arrowDeg} />
-                        <span>
-                          {f.swell_wave_height.toFixed(2)}m @ {f.swell_wave_peak_period?.toFixed(1) ?? '?'}s
-                        </span>
-                      </div>
-
-                      {/* Wind */}
-                      <div className="text-xs text-white/80">
-                        {f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h<br />
-                        {f.wind_type}{f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
 
             );
           })}
