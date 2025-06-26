@@ -76,8 +76,8 @@ export default function App(){
   const [spots,setSpots]=useState<Spot[]>([]);
   const [location,setLocation]=useState<Location|null>(null);
   const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(false);
-  const [error,setError]=useState<string|null>(null);
+  const [, setLoading] = useState(false);
+  const [, setError] = useState<string | null>(null);
   const [hasEditedQuery, setHasEditedQuery] = useState(false);
   const [qualityFilter, setQualityFilter] = useState<string[]>([]);
 
@@ -140,10 +140,10 @@ export default function App(){
   
 
   return(
-  <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4 text-white">
-  <div className="max-w-3xl mx-auto">
+    
+  <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4 timeLabel">
     <PageHeader title="Surf more, with less planning" />
-
+  <div className="max-w-3xl mx-auto text-white">
     {location ? (
       <p className="mb-2 px-4">Find surfable spots around you, up to 10 days ahead</p>
     ) : (

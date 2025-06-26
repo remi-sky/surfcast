@@ -46,7 +46,7 @@ export default function SpotForecastPage() {
   const [forecasts, setForecasts] = useState<SurfForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [spotDetails, setSpotDetails] = useState<any>(null);
+const [spotDetails, setSpotDetails] = useState<SurfSpot | null>(null);
 
 
   useEffect(() => {
@@ -93,12 +93,6 @@ export default function SpotForecastPage() {
   return (
   <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4">
     <div className="max-w-3xl mx-auto p-4">
-      <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="text-sm text-white underline">
-          ← Back
-        </button>
-      </div>
-
 
       {spotDetails && (
         
@@ -148,10 +142,10 @@ export default function SpotForecastPage() {
                 </h2>
 
                 {filteredForecasts.map(f => {
-                    const datetimeStr = `${date}T${f.time}`;
-                    const timeLabel = new Date(datetimeStr).toLocaleTimeString(undefined, {                            hour: 'numeric',
-                            hour12: true,
-                    });
+                    const timeLabel = new Date(f.time).toLocaleTimeString(undefined, {
+                    hour: 'numeric',
+                    hour12: true,
+                  });
                   const arrowDeg = f.swell_wave_direction ?? 0;
 
                   return (
