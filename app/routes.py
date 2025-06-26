@@ -3,7 +3,7 @@ from typing import List, Dict
 from datetime import datetime, timedelta, date
 
 from fastapi.responses import StreamingResponse
-from app.spots import SPOTS, SurfSpot
+from app.spots import SurfSpot
 from app.forecast import get_forecast, scrape_surf_forecast
 from io import StringIO
 import os
@@ -40,7 +40,7 @@ async def get_forecasted_spots(
     query = """
     SELECT
         s.id, s.name, s.lat, s.lon, s.region, s.town, s.surf_benchmark_url,
-        f.timestamp_utc, f.surf_rating, f.explanation, f.swell_wave_height, f.swell_wave_peak_period, f.wind_speed_kmh, f.wind_type, f.wind_severity
+        f.timestamp_utc, f.surf_rating, f.explanation, f.swell_wave_height, f.swell_wave_peak_period, f.wind_speed_kmh, f.wind_type, f.wind_severity, f.swell_wave_direction
     FROM surf_spots s
     JOIN surf_forecast_hourly f ON f.spot_id = s.id
     WHERE ST_DWithin(
@@ -97,6 +97,12 @@ async def get_forecasted_spots(
                     "time": dt_local.strftime("%H:%M"),
                     "rating": f["surf_rating"],
                     "explanation": f["explanation"],
+                    "swell_wave_height": f["swell_wave_height"],
+                    "swell_wave_peak_period": f["swell_wave_peak_period"],
+                    "wind_speed_kmh": f["wind_speed_kmh"],
+                    "wind_type": f["wind_type"],
+                    "wind_severity": f["wind_severity"],
+                    "swell_wave_direction": f["swell_wave_direction"],
                     "timestamp_sort": dt_local
                 }
 
@@ -190,3 +196,32 @@ async def get_spot_forecasts(
         raise HTTPException(status_code=404, detail="No future forecasts available")
 
     return forecasts
+
+
+@router.get("/api/spots/{spot_id}")
+async def get_spot_details(spot_id: UUID):
+    query = """
+        SELECT id, name, lat, lon, facing_direction, swell_min_m,
+               swell_dir_min, swell_dir_max, preferred_wind_wave_max_m,
+               best_swell_dir_label, best_wind_dir_label, post_code, town,
+               region, surf_benchmark_url, image_url, image_credit, image_credit_url,
+               image_source_url, timezone
+        FROM surf_spots
+        WHERE id = $1
+    """
+
+    conn = None
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        row = await conn.fetchrow(query, spot_id)
+    except Exception as e:
+        print(f"[ERROR] Spot details query failed: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+    finally:
+        if conn:
+            await conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Spot not found")
+
+    return dict(row)

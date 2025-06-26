@@ -2,8 +2,13 @@
 export interface SummaryForecast {
     date: string;
     time: string;
-    rating: 'Poor' | 'Fair' | 'Good' | 'Excellent';
+    rating: 'Lake Mode' | 'Sketchy' | 'Playable' | 'Solid' | 'Firing';
     explanation: string;
+    swell_wave_height: number;
+    swell_wave_peak_period?: number;
+    wind_speed_kmh?: number;
+    wind_type?: string;
+    wind_severity?: string;
   }
   
   export interface Spot {
@@ -30,8 +35,9 @@ export interface SummaryForecast {
     wind_speed_kmh?: number;
     wind_direction_deg?: number;
     wind_type?: string;
+    wind_severity?: string;
     explanation?: string;
-    rating?: 'Poor' | 'Fair' | 'Good' | 'Excellent';
+    rating?: 'Lake Mode' | 'Sketchy' | 'Playable' | 'Solid' | 'Firing';
     timezone?: string;
   }
   

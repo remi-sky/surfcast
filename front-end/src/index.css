@@ -1,9 +1,15 @@
 :root {
-  /* sunrise-to-peach gradient tokens */
+  /* sunrise-to-peach gradient tokens 
   --gradient-start: #FF7E5F;
   --gradient-end:   #FEB47B;
-  /* slightly desaturated teal for accents */
-  --accent-teal:    #2AB7CA;
+  --gradient-middle: #FFB6A0;
+  /* slightly desaturated teal for accents 
+  --accent-teal:   #2AB7CA;*/
+
+  --gradient-start: #fb923c; /* orange-400*/
+  --gradient-middle: #ec4899;   /* pink-500*/
+  --gradient-end:#8b5cf6; /*purple-600*/
+  --accent-teal:#14b8a6; /* teal-500 */
 }
 
 /* Tailwind layers */

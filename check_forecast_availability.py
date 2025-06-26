@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 from typing import List
 from app.forecast import get_forecast
-from app.spots import SurfSpot, SPOTS  
+from app.spots import SurfSpot, fetch_all_spots  
 
 output_file = "forecast_availability_check.csv"
 
@@ -31,7 +31,10 @@ async def check_forecast(spot: SurfSpot):
 
 async def main():
     results = []
-    for spot in SPOTS:
+
+    spots = await fetch_all_spots()
+
+    for spot in spots:
         result = await check_forecast(spot)
         results.append(result)
         await asyncio.sleep(1.2)  # Wait 2 seconds between each request
