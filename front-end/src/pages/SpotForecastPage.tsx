@@ -38,13 +38,6 @@ const groupByDate = (forecasts: SurfForecast[]) =>
     return acc;
   }, {});
 
-const ratingColors: Record<string, string> = {
-  'Lake Mode': 'bg-white text-gray-700',
-  Sketchy: 'bg-yellow-500 text-white',
-  Playable: 'bg-blue-400 text-white',
-  Solid: 'bg-purple-600 text-white',
-  Firing: 'bg-red-600 text-white',
-};
 
 export default function SpotForecastPage() {
   const { spotId } = useParams<Params>();
@@ -140,60 +133,69 @@ export default function SpotForecastPage() {
 
       {!loading && !error && (
         <div className="space-y-6">
-          {Object.entries(grouped).map(([date, dayForecasts]) => {
+          {(() => {
+          const filteredEntries = Object.entries(grouped).map(([date, dayForecasts]) => {
             const filteredForecasts = selectedRatings.length
-              ? dayForecasts.filter(f => selectedRatings.includes(f.rating))
+              ? dayForecasts.filter(f => typeof f.rating === 'string' && selectedRatings.includes(f.rating))
               : dayForecasts;
+
+            if (filteredForecasts.length === 0) return null;
+
             return (
-            <section key={date} className="bg-white/10 rounded-xl p-4">
-              <h2 className="text-lg font-semibold text-white mb-3 border-b border-white/30 pb-1">
-                {formatDateHeader(date)}
-              </h2>
+              <section key={date} className="bg-white/10 rounded-xl p-4 space-y-4">
+                <h2 className="text-lg font-semibold text-white mb-2 border-b border-white/30 pb-1">
+                  {formatDateHeader(date)}
+                </h2>
 
-            <div className="space-y-4">
-              {filteredForecasts.map(f => {
-                const [, timePart] = f.time.split('T');
-                const hour = parseInt(timePart.slice(0, 2));
-                const minutes = timePart.slice(3, 5);
-                const ampmHour = ((hour + 11) % 12 + 1); // converts 0–23 to 1–12
-                const period = hour < 12 ? 'am' : 'pm';
-                const timeLabel = `${ampmHour}:${minutes} ${period}`;
+                {filteredForecasts.map(f => {
+                    const datetimeStr = `${date}T${f.time}`;
+                    const timeLabel = new Date(datetimeStr).toLocaleTimeString(undefined, {                            hour: 'numeric',
+                            hour12: true,
+                    });
+                  const arrowDeg = f.swell_wave_direction ?? 0;
 
-                const swell = `${f.swell_wave_height.toFixed(2)}m @ ${f.swell_wave_peak_period?.toFixed(1) ?? '?'}s`;
-                const wind = `${f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h ${f.wind_type}${f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}`;
-
-                return (
-                  <div key={f.time} className="p-3 rounded-lg bg-white/10 text-white/90 space-y-1">
-  <div className="flex justify-between items-center">
-    <div className="text-sm font-semibold">{timeLabel}</div>
-    <div className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white">
-      {f.rating}
-    </div>
-  </div>
-  <div className="flex items-center gap-2 text-sm">
-    <span>🌊</span>
-    <span>
-      {f.swell_wave_height.toFixed(2)}m @ {f.swell_wave_peak_period?.toFixed(1) ?? '?'}s
-    </span>
-    <SwellArrow direction={f.swell_wave_direction ?? 0} />
-  </div>
-  <div className="flex items-center gap-2 text-sm">
-    <span>💨</span>
-    <span>
-      {f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h {f.wind_type}
-      {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}
-    </span>
-  </div>
-</div>
-
-                );
-              })}
-            </div>
-          </section>
-
-
+                  return (
+                    <div key={f.time} className="p-3 rounded-lg bg-white/10 text-white/90 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-white/90">
+                                {timeLabel}
+                              </div>
+                          <div className="text-xs px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-white/90">
+                                {f.rating}
+                          </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span>🌊</span>
+                        <span>
+                          {f.swell_wave_height.toFixed(2)}m @ {f.swell_wave_peak_period?.toFixed(1) ?? '?'}s
+                        </span>
+                        <SwellArrow direction={arrowDeg} />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span>💨</span>
+                        <span>
+                          {f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h {f.wind_type}
+                          {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
             );
-          })}
+          }).filter(Boolean); // remove nulls
+
+          if (filteredEntries.length === 0) {
+            return (
+              <div className="bg-white/10 text-white/80 text-sm text-center p-4 rounded-xl">
+                No sessions match your current filter.
+              </div>
+            );
+          }
+
+          return <>{filteredEntries}</>;
+        })()}
+
         </div>
       )}
     </div>

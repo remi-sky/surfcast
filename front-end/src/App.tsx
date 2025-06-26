@@ -140,122 +140,143 @@ export default function App(){
   
 
   return(
-  <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4">
-    <PageHeader title="Surf more, with less planning 🏄‍♂️" />
-      <div className="px-4 text-white">
-        {location? <p className="mb-2">Discover surfable spots over the next 10 days nearby</p>:
-          <p className="italic mb-2">Detecting location…</p>}
+  <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4 text-white">
+  <div className="max-w-3xl mx-auto">
+    <PageHeader title="Surf more, with less planning" />
 
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex mb-4">
-        <input className="flex-1 px-3 py-2 rounded-l-lg border border-white text-black" placeholder="City, town or postcode" value={query} onChange={e => {
+    {location ? (
+      <p className="mb-2 px-4">Find surfable spots around you, up to 10 days ahead</p>
+    ) : (
+      <p className="italic mb-2 px-4">Detecting location…</p>
+    )}
+
+    {/* Search */}
+    <form onSubmit={handleSearch} className="flex px-4 mb-4">
+      <input
+        className="flex-1 px-3 py-2 rounded-l-lg border border-white text-black"
+        placeholder="City, town or postcode"
+        value={query}
+        onChange={e => {
           setQuery(e.target.value);
           setHasEditedQuery(true);
-      }}
-    onFocus={() => {
-    if (!hasEditedQuery) setQuery('');
-    }}
-/>
-          <PrimaryButton
-            className="bg-accent-teal text-white px-4 py-2 rounded-r-lg"
+        }}
+        onFocus={() => {
+          if (!hasEditedQuery) setQuery('');
+        }}
+      />
+      <PrimaryButton className="bg-accent-teal text-white px-4 py-2 rounded-r-lg">
+        Search
+      </PrimaryButton>
+    </form>
+
+    {/* Surf Quality Filter */}
+    <div className="mb-6 px-4">
+      <p className="text-white/80 text-sm mb-1">Show results by surf potential</p>
+      <div className="flex space-x-2">
+        {['Playable', 'Solid', 'Firing'].map(q => (
+          <button
+            key={q}
+            onClick={() => toggleQuality(q)}
+            className={
+              `px-3 py-1 rounded-full text-sm font-medium transition ` +
+              (qualityFilter.includes(q)
+                ? 'bg-accent-teal text-white'
+                : 'bg-white/30 text-white/70')
+            }
           >
-            Search
-          </PrimaryButton>
-        </form>
-
-        {/* Surf Quality Filter */}
-          <div className="mb-6">
-          <p className="text-white/80 text-sm mb-1">Show results by surf potential</p>
-          <div className="flex space-x-2">
-            {['Playable','Solid','Firing'].map(q => (
-              <button
-                key={q}
-                onClick={() => toggleQuality(q)}
-                className={
-                  `px-3 py-1 rounded-full text-sm font-medium transition ` +
-                  (qualityFilter.includes(q)
-                    ? 'bg-accent-teal text-white'
-                    : 'bg-white/30 text-white/70')
-                }
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-          </div>
-
-        {loading && <p className="py-4">Loading forecasts…</p>}
-        {error && <p className="text-red-400">Error: {error}</p>}
-
-        {/* Spot cards */}
-        <div className="space-y-8">
-          {spots.map(spot=>{
-            
-            const filtered = qualityFilter.length
-            ? spot.forecasts.filter(f => qualityFilter.includes(f.rating))
-            : spot.forecasts;
-
-            if(!filtered.length) return null;
-            // group by date
-            const groups: Record<string,SummaryForecast[]> = {};
-            filtered.forEach(f=>{(groups[f.date]||(groups[f.date]=[])).push(f);});
-
-            return(
-              <div key={spot.id} className="relative p-6 bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg">
-                <div className="flex justify-between items-baseline mb-3">
-                  <h2 className="text-xl font-semibold text-white drop-shadow">
-                    {spot.name} <span className="text-sm font-normal">({spot.distance.toFixed(1)} mi)</span>
-                  </h2>
-                </div>
-
-                {/* forecast groups */}
-                {Object.entries(groups).map(([date,items])=> (
-                  <div key={date} className="mb-4">
-                    <h3 className="font-semibold text-white">
-                      {new Date(date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
-                    </h3>
-                    <ul className="pl-4">
-                      {items.map(f=> {
-                        return (
-                          <li key={f.time} className="text-sm text-white/90 mb-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {/* Rating badge */}
-                              <span className="font-semibold capitalize text-white/100">{f.rating}</span>
-
-                              {/* Swell info with rotated arrow */}
-                              <span className="flex items-center gap-1">
-                                Swell:
-                                <span className="flex items-center gap-1">
-                                {f.swell_wave_height}m @ {f.swell_wave_peak_period ?? '?'}s
-                                </span>
-                                <SwellArrow direction={f.swell_wave_direction ?? 0}/>
-                              </span>
-
-                              {/* Wind info */}
-                              <span className="flex items-center gap-1">
-                                Wind: {f.wind_speed_kmh ?? '?'} km/h
-                                ({f.wind_type}
-                                {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''})
-                              </span>
-                            </div>
-                          </li>
-
-
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
-                   <div className="flex justify-end mt-4">
-                   <PrimaryButton onClick={() => navigate(`/spots/${spot.id}/forecast`)} className="px-3 py-1 bg-accent-teal text-white rounded-full text-sm hover:opacity-90 transition">
-                       View Forecast
-                    </PrimaryButton>
-                  </div>
-              </div>
-            );
-          })}
-        </div>
+            {q}
+          </button>
+        ))}
       </div>
     </div>
+
+    {/* Results */}
+    <div className="space-y-8 px-4">
+      {spots.filter(spot => {
+        const forecasts = qualityFilter.length
+          ? spot.forecasts.filter(f => qualityFilter.includes(f.rating))
+          : spot.forecasts;
+        return forecasts.length > 0;
+      }).length === 0 && (
+        <div className="bg-white/10 text-white/80 text-sm text-center p-4 rounded-xl">
+          No sessions match your current filter.
+        </div>
+      )}          
+      
+            {spots.map(spot=>{
+              const filtered = qualityFilter.length
+                ? spot.forecasts.filter(f => qualityFilter.includes(f.rating))
+                : spot.forecasts;
+
+              if(!filtered.length) return null;
+
+              // group by date
+              const groups: Record<string,SummaryForecast[]> = {};
+              filtered.forEach(f=>{(groups[f.date]||(groups[f.date]=[])).push(f);});
+
+              return(
+                <div key={spot.id} className="relative p-6 bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg">
+                  <div className="flex justify-between items-baseline mb-3">
+                    <h2 className="text-xl font-semibold text-white drop-shadow">
+                      {spot.name} <span className="text-sm font-normal">({spot.distance.toFixed(1)} mi)</span>
+                    </h2>
+                  </div>
+
+                  {/* forecast groups */}
+                  {Object.entries(groups).map(([date,items])=> (
+                    <div key={date} className="mb-4">
+                      <h3 className="font-semibold text-white mb-2 border-b border-white/20 pb-1">
+                        {new Date(date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
+                      </h3>
+                      <ul className="space-y-2">
+                        {items.map(f=> {
+                          const arrowDeg = f.swell_wave_direction ?? 0;
+                          const datetimeStr = `${date}T${f.time}`;
+                          const timeLabel = new Date(datetimeStr).toLocaleTimeString(undefined, {                            hour: 'numeric',
+                            hour12: true,
+                          });
+                          return (
+                            <li key={f.time} className="p-3 rounded-lg bg-white/10 text-white/90 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm text-white/90">
+                                {timeLabel}
+                              </div>
+                              <div className="text-xs px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-white/90">
+                                {f.rating}
+                              </div>
+                            </div>
+                              <div className="flex items-center gap-2 text-sm">
+                            <span>🌊</span>
+                                <span>
+                                  {f.swell_wave_height.toFixed(2)}m @ {f.swell_wave_peak_period?.toFixed(1) ?? '?'}s
+                                </span>
+                                <SwellArrow direction={arrowDeg} />
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <span>💨</span>
+                                <span>
+                                  {f.wind_speed_kmh?.toFixed(0) ?? '?'} km/h {f.wind_type}
+                                  {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''}
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+
+                  <div className="flex justify-end mt-4">
+                    <PrimaryButton onClick={() => navigate(`/spots/${spot.id}/forecast`)} className="px-3 py-1 bg-accent-teal text-white rounded-full text-sm hover:opacity-90 transition">
+                      View Forecast
+                    </PrimaryButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+      </div>
+      </div>
   );
 };
