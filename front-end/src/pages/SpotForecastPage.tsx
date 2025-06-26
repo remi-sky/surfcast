@@ -1,6 +1,6 @@
 // src/pages/SpotForecastPage.tsx
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import type { SurfForecast } from '../types';
 import { API_BASE } from '../config';
 import { PageHeader } from '../components/PageHeader';
