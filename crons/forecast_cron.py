@@ -12,8 +12,9 @@ from timezonefinder import TimezoneFinder
 from supabase import create_client, Client
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from app.spots import SPOTS
+
 from app.models import MarineForecast, SurfForecast
+from app.spots import SurfSpot, fetch_all_spots
 from app.forecast import get_forecast
 from app.heuristics import evaluate_surf_quality
 
@@ -31,13 +32,15 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 tf = TimezoneFinder()
 
 async def process_spot(spot, spot_id: str):
-    tz_str = tf.timezone_at(lat=spot.lat, lng=spot.lon)
-    if not tz_str:
-        print(f"[WARNING] No timezone found for {spot.name}, skipping")
-        return
-    local_tz = pytz.timezone(tz_str)
 
-    forecasts = await get_forecast(spot,tz_str, start_date=None, end_date=None)
+    local_tz = pytz.timezone(spot.timezone)
+    if not local_tz:
+        print(f"[WARNING] No local timezone found for {spot.name}, skipping")
+        return
+
+    print (f"[DEBUG] Processing spot: {spot.name} (ID: {spot_id})")
+    print(f"[DEBUG] Local timezone for {spot.name}: {local_tz.zone}")
+    forecasts = await get_forecast(spot,spot.timezone, start_date=None, end_date=None)
  
     print(f"[DEBUG] {spot.name} → {len(forecasts)} total valid forecasts from Open-Meteo")
   
@@ -48,7 +51,8 @@ async def process_spot(spot, spot_id: str):
             local_dt = datetime.strptime(f.time, "%Y-%m-%dT%H:%M")
             if local_dt.hour not in relevant_hours:
                 continue
-            utc_dt = local_dt.replace(tzinfo=local_tz).astimezone(pytz.utc)
+            utc_dt = local_tz.localize(local_dt).astimezone(pytz.utc)
+            print(f"[DEBUG] Processing forecast for {spot.name} at {local_dt.isoformat()} (UTC: {utc_dt.isoformat()})") 
             surf_forecast = evaluate_surf_quality(spot, f)
 
             rows.append({
@@ -96,16 +100,10 @@ async def main():
     total_forecasts_inserted = 0
     spots_processed = 0
 
-    # Get DB surf spots with ID
-    result = supabase.table("surf_spots").select("id, name").execute()
-    id_map = {r["name"]: r["id"] for r in result.data}
+    spots = await fetch_all_spots()
 
-    for spot in SPOTS:
-        spot_id = id_map.get(spot.name)
-        if not spot_id:
-            print(f"[WARNING] No spot_id found for {spot.name}")
-            continue
-        await process_spot(spot, spot_id)
+    for spot in spots:
+        await process_spot(spot, str(spot.id))
         await asyncio.sleep(1)
     
     # ⏱ End the timer

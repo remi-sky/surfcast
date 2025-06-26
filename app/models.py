@@ -1,34 +1,6 @@
-from pydantic import BaseModel
 from typing import Optional
+from pydantic import BaseModel
 
-class ForecastRequest(BaseModel):
-    spot: str
-    swell_height_m: float
-    swell_direction_deg: float
-    wind_speed_kph: float
-    wind_direction_deg: float
-
-class ForecastResponse(BaseModel):
-    spot: str
-    surfable: bool
-
-class ForecastTestResponse(BaseModel):
-    time: str
-    swell_wave_height: float
-    swell_wave_direction: float
-    wind_wave_height_m: float
-
-class SurfableForecast(BaseModel):
-    spot: str
-    time: Optional[str] = None
-    wave_height: Optional[float] = None
-    wave_direction: Optional[int] = None
-    wind_wave_height: Optional[float] = None
-    swell_period: Optional[float] = None
-    wind_direction: Optional[int] = None
-    surfable: bool
-    reason: Optional[str] = None
-    level: Optional[str] = None  # "Poor", "Fair", "Good", "Excellent"
 
 class MarineForecast(BaseModel):
     time: str

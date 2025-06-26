@@ -14,6 +14,7 @@ module.exports = {
         colors: {
           'gradient-start': 'var(--gradient-start)',
           'gradient-end':   'var(--gradient-end)',
+          'gradient-middle': 'var(--gradient-middle)',
           'accent-teal':    'var(--accent-teal)',
         },
         backdropBlur: {

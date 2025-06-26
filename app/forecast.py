@@ -36,6 +36,23 @@ async def fetch_with_retry(url, params, label, spot_name):
             print(f"[ERROR] Unexpected error fetching {label} for {spot_name}: {e}")
             return None
 
+def resolve_swell_period(marine_hourly: dict, i: int) -> Optional[float]:
+    """
+    Returns the swell_wave_peak_period if available.
+    If not, estimates it by scaling swell_wave_period by 1.25 (i.e., dividing by 0.8).
+    """
+    peak = marine_hourly.get("swell_wave_peak_period", [None])[i]
+    if peak is not None:
+        return peak
+
+    avg = marine_hourly.get("swell_wave_period", [None])[i]
+    if avg is not None:
+        estimated = round(avg / 0.8, 1)
+        print(f"[INFO] Approximated peak period from average: {avg} → {estimated}")
+        return estimated
+
+    return None
+
 
 async def get_forecast(
     spot: SurfSpot,
@@ -59,7 +76,7 @@ async def get_forecast(
         "end_date": end_date,
         "hourly": [
             "swell_wave_height", "swell_wave_direction", "swell_wave_peak_period",
-            "wind_wave_height", 
+            "wind_wave_height", "swell_wave_period",
         ],
         "timezone": timezone_str,
     }
@@ -85,9 +102,10 @@ async def get_forecast(
     marine_hourly = {k: v for k, v in marine_data.get("hourly", {}).items()}
     weather_hourly = {k: v for k, v in weather_data.get("hourly", {}).items()}
 
+    
     # Check critical keys before continuing
     required_keys = [
-        "time", "swell_wave_height", "swell_wave_direction", "swell_wave_peak_period",
+        "time", "swell_wave_height", "swell_wave_direction", "swell_wave_period",
         "wind_wave_height", "wind_speed_10m", "wind_direction_10m"
     ]
     for key in required_keys:
@@ -109,10 +127,14 @@ async def get_forecast(
             "wind_direction": weather_hourly["wind_direction_10m"][i],
         }
 
+        if marine_hourly.get("swell_wave_peak_period", [None])[i] is None:
+           values["swell_wave_peak_period"] = resolve_swell_period(marine_hourly, i)
+           #print(f"[DEBUG] No swell_wave_peak_period found for {spot.name}, estimating as {values['swell_wave_peak_period']}")
+           
         if any(v is None for v in values.values()):
             missing = [k for k, v in values.items() if v is None]
-            print(f"[DEBUG] Skipping index {i} for {spot.name} due to missing: {missing}")
-            print(f"[DEBUG] Raw values for {spot.name}, index {i}, time {t}: {values}")
+            #print(f"[DEBUG] Skipping index {i} for {spot.name} due to missing: {missing}")
+            #print(f"[DEBUG] Raw values for {spot.name}, index {i}, time {t}: {values}")
             continue
 
         try:
@@ -131,8 +153,6 @@ async def get_forecast(
             continue
 
     return forecasts
-
-
 
 
 

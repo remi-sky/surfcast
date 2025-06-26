@@ -5,14 +5,22 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from './components/PageHeader';
 import { PrimaryButton } from './components/PrimaryButton';
 import { API_BASE } from './config';
+import { SwellArrow } from './components/SwellArrow';
 
 // Types
 interface SummaryForecast {
   date: string;
   time: string;
-  rating: string;
+  rating: 'Lake Mode' | 'Sketchy' | 'Playable' | 'Solid' | 'Firing';
   explanation: string;
+  swell_wave_height: number;
+  swell_wave_peak_period?: number;
+  swell_wave_direction?: number;
+  wind_speed_kmh?: number;
+  wind_type?: string;
+  wind_severity?: string;
 }
+
 interface Spot {
   id: string;
   name: string;
@@ -112,6 +120,7 @@ export default function App(){
       .finally(()=>setLoading(false));
   },[location]);
 
+
   const handleSearch=async(e:FormEvent)=>{
     e.preventDefault();
     if(!query) return;
@@ -128,12 +137,13 @@ export default function App(){
   const toggleQuality=(q:string)=>{
     setQualityFilter(qv=>qv.includes(q)?qv.filter(x=>x!==q):[...qv,q]);
   };
+  
 
   return(
-    <div className="min-h-screen bg-gradient-to-r from-gradient-start to-gradient-end p-4">
-      <PageHeader title="Surf more, with less planning 🏄‍♂️" />
+  <div className="min-h-screen bg-gradient-to-r from-gradient-start via-gradient-middle to-gradient-end p-4">
+    <PageHeader title="Surf more, with less planning 🏄‍♂️" />
       <div className="px-4 text-white">
-        {location? <p className="mb-2">Discover surfable spots nearby over the next 10 days</p>:
+        {location? <p className="mb-2">Discover surfable spots over the next 10 days nearby</p>:
           <p className="italic mb-2">Detecting location…</p>}
 
         {/* Search */}
@@ -155,7 +165,7 @@ export default function App(){
 
         {/* Surf Quality Filter */}
           <div className="mb-6">
-          <p className="text-white/80 text-sm mb-1">Surf Quality</p>
+          <p className="text-white/80 text-sm mb-1">Show results by surf potential</p>
           <div className="flex space-x-2">
             {['Playable','Solid','Firing'].map(q => (
               <button
@@ -199,17 +209,40 @@ export default function App(){
                 </div>
 
                 {/* forecast groups */}
-                {Object.entries(groups).map(([date,items])=>(
+                {Object.entries(groups).map(([date,items])=> (
                   <div key={date} className="mb-4">
                     <h3 className="font-semibold text-white">
                       {new Date(date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
                     </h3>
                     <ul className="pl-4">
-                      {items.map(f=>(
-                        <li key={f.time} className="text-sm text-white/90 mb-1">
-                          <span className="font-medium capitalize">{f.rating}</span> — {f.explanation}
-                        </li>
-                      ))}
+                      {items.map(f=> {
+                        return (
+                          <li key={f.time} className="text-sm text-white/90 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* Rating badge */}
+                              <span className="font-semibold capitalize text-white/100">{f.rating}</span>
+
+                              {/* Swell info with rotated arrow */}
+                              <span className="flex items-center gap-1">
+                                Swell:
+                                <span className="flex items-center gap-1">
+                                {f.swell_wave_height}m @ {f.swell_wave_peak_period ?? '?'}s
+                                </span>
+                                <SwellArrow direction={f.swell_wave_direction ?? 0}/>
+                              </span>
+
+                              {/* Wind info */}
+                              <span className="flex items-center gap-1">
+                                Wind: {f.wind_speed_kmh ?? '?'} km/h
+                                ({f.wind_type}
+                                {f.wind_type !== 'glassy' && f.wind_severity ? `, ${f.wind_severity}` : ''})
+                              </span>
+                            </div>
+                          </li>
+
+
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}
