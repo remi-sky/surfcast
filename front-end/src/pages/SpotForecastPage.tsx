@@ -41,8 +41,6 @@ const groupByDate = (forecasts: SurfForecast[]) =>
 
 export default function SpotForecastPage() {
   const { spotId } = useParams<Params>();
-  const navigate = useNavigate();
-
   const [forecasts, setForecasts] = useState<SurfForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
