@@ -44,7 +44,7 @@ async def process_spot(spot, spot_id: str):
  
     print(f"[DEBUG] {spot.name} → {len(forecasts)} total valid forecasts from Open-Meteo")
   
-    relevant_hours = [3, 6, 9, 12, 18, 21]
+    relevant_hours = [6, 9, 12, 18, 21]
     rows = []
     for f in forecasts:
         try:
