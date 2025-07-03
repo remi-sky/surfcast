@@ -1,5 +1,5 @@
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr
 
 
 class MarineForecast(BaseModel):
@@ -25,3 +25,13 @@ class SurfForecast(BaseModel):
     wind_severity: Optional[str] = None  # "light", "breezy", "strong", "none"
     explanation: Optional[str] = None
     rating: Optional[str] = None  # "Lake mode", "Sketchy", "Playable", "Solid", "Firing"
+
+class SurfAlertCreate(BaseModel):
+    email: EmailStr
+    town: str
+    lat: float
+    lon: float
+    radius_km: float
+    quality_levels: List[str]
+    region: str
+    country: str

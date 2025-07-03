@@ -12,3 +12,6 @@ __pycache__/
 *.vscode/
 app/spotsscript.py
 benchmark_forecast.py
+*.csv
+enrich_surf_spots.py
+*.sql

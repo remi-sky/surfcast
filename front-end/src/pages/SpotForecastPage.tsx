@@ -95,9 +95,10 @@ const [spotDetails, setSpotDetails] = useState<SurfSpot | null>(null);
       {spotDetails && (
         
          <>
-              <PageHeader title={`${spotDetails.name} – Forecast`} />
-
-         </>
+                   <h1 className="text-2xl font-bold mb-1">{spotDetails.name}</h1>
+                <p className="text-xs text-white/70 mb-2">{[spotDetails.town, spotDetails.region].filter(Boolean).join(', ')}</p>
+                  <hr className="my-2" />
+          </>
     )}
 
       <div className="mb-4">
@@ -143,6 +144,7 @@ const [spotDetails, setSpotDetails] = useState<SurfSpot | null>(null);
                     const timeLabel = new Date(f.time).toLocaleTimeString(undefined, {
                     hour: 'numeric',
                     hour12: true,
+                    timeZone: spotDetails?.timezone ?? 'UTC'
                   });
                   const arrowDeg = f.swell_wave_direction ?? 0;
 

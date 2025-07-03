@@ -94,4 +94,4 @@ def enrich_spots(csv_path: str, output_path: str):
     print(f"[DONE] Enriched data saved to {output_path}")
 
 if __name__ == "__main__":
-    enrich_spots("./uk_surf_spots.csv", "./enriched_uk_surf_spots.csv")
+    enrich_spots("./app/indonesia_surf_spots.csv", "./enriched_indonesia_surf_spots.csv")

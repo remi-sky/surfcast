@@ -13,7 +13,7 @@ import asyncpg
 from collections import defaultdict
 import pytz
 from timezonefinder import TimezoneFinder
-from app.models import SurfForecast
+from app.models import SurfForecast, SurfAlertCreate
 from uuid import UUID
 
 try:
@@ -39,7 +39,7 @@ async def get_forecasted_spots(
 ):
     query = """
     SELECT
-        s.id, s.name, s.lat, s.lon, s.region, s.town, s.surf_benchmark_url,
+        s.id, s.name, s.lat, s.lon, s.region, s.town, s.surf_benchmark_url, s.timezone,
         f.timestamp_utc, f.surf_rating, f.explanation, f.swell_wave_height, f.swell_wave_peak_period, f.wind_speed_kmh, f.wind_type, f.wind_severity, f.swell_wave_direction
     FROM surf_spots s
     JOIN surf_forecast_hourly f ON f.spot_id = s.id
@@ -48,7 +48,7 @@ async def get_forecasted_spots(
         ST_SetSRID(ST_MakePoint($1, $2), 4326),
         $3 * 1000
     )
-    AND f.timestamp_utc >= (NOW() AT TIME ZONE 'UTC')::date
+    AND f.timestamp_utc >= NOW() 
     AND f.surf_rating IN ('Firing', 'Solid', 'Playable')
     ORDER BY s.id, f.timestamp_utc
     """
@@ -75,13 +75,14 @@ async def get_forecasted_spots(
                 "lon": row["lon"],
                 "region": row["region"],
                 "town": row["town"],
-                "surf_benchmark_url": row["surf_benchmark_url"]
+                "surf_benchmark_url": row["surf_benchmark_url"],
+                "timezone": row["timezone"]
             }
 
     # Find best forecast per day per spot (local time)
     output = []
     for spot_id, forecasts in grouped.items():
-        tz_str = tf.timezone_at(lat=spot_info[spot_id]["lat"], lng=spot_info[spot_id]["lon"]) or "UTC"
+        tz_str = spot_info[spot_id]["timezone"] or "UTC"
         tz = pytz.timezone(tz_str)
 
         daily_best = {}
@@ -103,7 +104,8 @@ async def get_forecasted_spots(
                     "wind_type": f["wind_type"],
                     "wind_severity": f["wind_severity"],
                     "swell_wave_direction": f["swell_wave_direction"],
-                    "timestamp_sort": dt_local
+                    "timestamp_sort": dt_local,
+                    "timezone": tz_str
                 }
 
         if daily_best:
@@ -112,6 +114,8 @@ async def get_forecasted_spots(
             spot_entry["forecasts"] = [
                 {k: v for k, v in d.items() if k != "timestamp_sort"} for d in sorted_daily
             ]
+            # Ensure timezone is included in the spot entry
+            spot_entry["timezone"] = tz_str
             output.append(spot_entry)
 
     # Sort all spots by their soonest forecast timestamp
@@ -210,6 +214,7 @@ async def get_spot_details(spot_id: UUID):
         WHERE id = $1
     """
 
+
     conn = None
     try:
         conn = await asyncpg.connect(DATABASE_URL)
@@ -225,3 +230,65 @@ async def get_spot_details(spot_id: UUID):
         raise HTTPException(status_code=404, detail="Spot not found")
 
     return dict(row)
+
+    
+@router.get("/api/alerts/{alert_uuid}")
+async def get_surf_alert(alert_uuid: UUID):
+        """Get a specific surf alert by alert_uuid from the database"""
+        query = """
+            SELECT id, email, location_name, lat, lon, radius_km, 
+                   quality_levels, region, country
+            FROM surf_alerts
+            WHERE alert_uuid = $1
+        """
+        
+        conn = None
+        try:
+            conn = await asyncpg.connect(DATABASE_URL)
+            row = await conn.fetchrow(query, alert_uuid)
+        except Exception as e:
+            print(f"[ERROR] Surf alert query failed: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
+        finally:
+            if conn:
+                await conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        
+        return dict(row)
+    
+@router.post("/api/alerts")
+async def create_surf_alert(alert: SurfAlertCreate):
+        """Create a new surf alert"""
+        query = """
+            INSERT INTO surf_alerts (
+                email, location_name, lat, lon, radius_km, quality_levels, 
+                region, country
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, alert_uuid, email, location_name, lat, lon, radius_km, 
+                    quality_levels, region, country
+        """
+        
+        conn = None
+        try:
+            conn = await asyncpg.connect(DATABASE_URL)
+            row = await conn.fetchrow(
+                query,
+                alert.email,
+                alert.location_name,
+                alert.lat,
+                alert.lon,
+                alert.radius_km,
+                alert.quality_levels,
+                alert.region,
+                alert.country
+            )
+        except Exception as e:
+            print(f"[ERROR] Surf alert creation failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        finally:
+            if conn:
+                await conn.close()
+        
+        return dict(row)
