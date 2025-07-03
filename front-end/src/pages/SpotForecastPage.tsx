@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { SurfForecast } from '../types';
 import { API_BASE } from '../config';
-import { PageHeader } from '../components/PageHeader';
 import { SwellArrow } from '../components/SwellArrow';
 
 interface SurfSpot {
