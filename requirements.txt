@@ -9,3 +9,4 @@ supabase
 requests
 bs4
 python-dotenv
+email-validator
